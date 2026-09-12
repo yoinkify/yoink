@@ -1,3 +1,4 @@
+import { logEvent } from "@/lib/logger";
 import { execFile } from "child_process";
 import { readFile, unlink } from "fs/promises";
 import { tmpdir } from "os";
@@ -108,10 +109,10 @@ async function ytdlpSearch(query: string): Promise<{ url: string; title: string;
         }
       } catch {}
     }
-    if (results.length > 0) console.log("[youtube] yt-dlp search returned", results.length, "results");
+    if (results.length > 0) logEvent("youtube.yt_dlp_search_returned");
     return results;
-  } catch (e) {
-    console.log("[youtube] yt-dlp search failed:", e instanceof Error ? e.message : e);
+  } catch {
+    logEvent("youtube.yt_dlp_search_failed");
     return [];
   }
 }
@@ -119,13 +120,13 @@ async function ytdlpSearch(query: string): Promise<{ url: string; title: string;
 async function youtubeSearch(query: string): Promise<{ url: string; title: string; uploaderName: string; duration: number }[]> {
   // Try piped first (faster, no subprocess)
   for (const instance of PIPED_INSTANCES) {
-    console.log("[youtube] trying piped instance:", instance);
+    logEvent("youtube.trying_piped_instance");
     const results = await pipedSearch(query, instance);
     if (results.length > 0) return results;
   }
 
   // Fall back to yt-dlp
-  console.log("[youtube] piped failed, trying yt-dlp");
+  logEvent("youtube.piped_failed_trying_yt_dlp");
   return ytdlpSearch(query);
 }
 
@@ -142,7 +143,7 @@ export async function searchYouTube(query: string, match?: SearchOptions): Promi
     const scored = scoreResults(streams, match);
     const best = scored[0];
 
-    console.log("[youtube] search:", query, `— top result: "${best.title}" by ${best.uploaderName} (score: ${best.score}, duration: ${best.duration}s)`);
+    logEvent("youtube.search");
 
     // If score is good enough, use it
     if (best.score >= MIN_SCORE) {
@@ -151,19 +152,19 @@ export async function searchYouTube(query: string, match?: SearchOptions): Promi
 
     // Try a more specific search with album name
     if (match.album) {
-      console.log("[youtube] score too low, retrying with album:", match.album);
+      logEvent("youtube.score_too_low_retrying_with_album");
       const refinedQuery = `${match.artist} - ${match.title} ${match.album}`;
       const refinedStreams = await youtubeSearch(refinedQuery);
       if (refinedStreams.length > 0) {
         const refinedScored = scoreResults(refinedStreams, match);
         const refinedBest = refinedScored[0];
-        console.log("[youtube] refined result: \"" + refinedBest.title + "\" by", refinedBest.uploaderName, `(score: ${refinedBest.score}, duration: ${refinedBest.duration}s)`);
+        logEvent("youtube.refined_result");
         if (refinedBest.score >= MIN_SCORE) {
           return refinedBest.url.replace("/watch?v=", "");
         }
         // Use the better of the two even if below threshold
         if (refinedBest.score > best.score) {
-          console.log("[youtube] using refined result (best available)");
+          logEvent("youtube.using_refined_result_best_available");
           return refinedBest.url.replace("/watch?v=", "");
         }
       }
@@ -171,11 +172,11 @@ export async function searchYouTube(query: string, match?: SearchOptions): Promi
 
     // Last resort: if nothing scored well, reject rather than serve the wrong song
     if (best.score < 2) {
-      console.log("[youtube] no good match found — rejecting all results");
+      logEvent("youtube.no_good_match_found_rejecting_all_results");
       return null;
     }
 
-    console.log("[youtube] using best available match (below ideal threshold)");
+    logEvent("youtube.using_best_available_match_below_ideal_threshold");
     return best.url.replace("/watch?v=", "");
   } catch {
     return null;
@@ -218,21 +219,21 @@ export async function ytdlpDownload(videoId: string): Promise<{ buffer: Buffer; 
 
     const buffer = await readFile(/* turbopackIgnore: true */ filePath);
     const ext = filePath.split(".").pop() || "webm";
-    console.log("[youtube] yt-dlp downloaded:", ext, `(${(buffer.length / 1024 / 1024).toFixed(1)}MB)`);
+    logEvent("youtube.yt_dlp_downloaded");
 
     // Clean up temp file
     try { await unlink(/* turbopackIgnore: true */ filePath); } catch {}
 
     return { buffer, format: ext };
-  } catch (e) {
-    console.log("[youtube] yt-dlp download failed:", e instanceof Error ? e.message : e);
+  } catch {
+    logEvent("youtube.yt_dlp_download_failed");
     return null;
   }
 }
 
 export async function getAudioStreamUrl(videoId: string): Promise<string> {
   for (const instance of PIPED_INSTANCES) {
-    console.log("[youtube] trying piped stream:", instance);
+    logEvent("youtube.trying_piped_stream");
     const url = await pipedStreamUrl(videoId, instance);
     if (url) return url;
   }

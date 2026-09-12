@@ -1,9 +1,10 @@
+import { withRequestLogging } from "@/lib/request-logging";
+import { logEvent } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import type { TrackInfo } from "@/lib/spotify";
 import { rateLimit } from "@/lib/ratelimit";
-import { getRequestSource } from "@/lib/request-source";
 import { buildEnvelopeMetadata, packEnvelope } from "@/lib/envelope";
-import { getClientIp, getRequestLogId, summarizeUrlForLogs } from "@/lib/request-privacy";
+import { getClientIp } from "@/lib/request-privacy";
 import { verifyProofOfWork } from "@/lib/proof-of-work-verify";
 import { enrichPlaylistTracks, loadPlaylistWithFallback } from "@/lib/playlist-workflow";
 import { prepareTrackAssets } from "@/lib/track-prep";
@@ -26,12 +27,10 @@ async function prepareTrack(
   return packEnvelope(metadata, audio.buffer, artBuffer);
 }
 
-export async function POST(request: NextRequest) {
-  const logId = getRequestLogId(request);
-
+async function handlePOST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
-    const source = getRequestSource(request);
+
     const { allowed, retryAfter } = rateLimit(`prepare-playlist:${ip}`, 5, 60_000);
     if (!allowed) {
       return NextResponse.json(
@@ -46,7 +45,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "verification failed — please try again" }, { status: 403 });
     }
 
-    console.log(`[prepare-playlist] [${source}] ${logId} → ${summarizeUrlForLogs(url)}`);
+    logEvent("api.prepare-playlist.request_received");
 
     if (!url || typeof url !== "string") {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
@@ -54,13 +53,13 @@ export async function POST(request: NextRequest) {
 
     const MAX_TRACKS = 200;
 
-    const playlist = await loadPlaylistWithFallback(url, "[prepare-playlist]");
+    const playlist = await loadPlaylistWithFallback(url);
 
     if (!playlist) {
       return NextResponse.json({ error: "couldn't load this right now" }, { status: 503 });
     }
 
-    playlist.tracks = await enrichPlaylistTracks(playlist.tracks, "[prepare-playlist]");
+    playlist.tracks = await enrichPlaylistTracks(playlist.tracks);
 
     if (!playlist.tracks.length) {
       return NextResponse.json({ error: "Playlist has no tracks" }, { status: 400 });
@@ -84,7 +83,7 @@ export async function POST(request: NextRequest) {
         const CONCURRENCY = 2;
         const MAX_RETRIES = 2;
 
-        const prepareWithRetry = async (track: TrackInfo, index: number): Promise<Buffer> => {
+        const prepareWithRetry = async (track: TrackInfo): Promise<Buffer> => {
           let lastError: unknown;
           for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
             try {
@@ -92,7 +91,7 @@ export async function POST(request: NextRequest) {
             } catch (err) {
               lastError = err;
               if (attempt < MAX_RETRIES) {
-                console.log(`[prepare-playlist] track ${index} attempt ${attempt + 1} failed, retrying...`);
+                logEvent("api.prepare-playlist.track_attempt_failed_retrying");
                 await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
               }
             }
@@ -115,7 +114,7 @@ export async function POST(request: NextRequest) {
           const batchResults = await Promise.allSettled(
             batch.map(async (track, j) => {
               if (j > 0) await new Promise((r) => setTimeout(r, 500 + Math.random() * 1000)); // stagger within batch
-              return prepareWithRetry(track, i + j);
+              return prepareWithRetry(track);
             })
           );
 
@@ -128,7 +127,7 @@ export async function POST(request: NextRequest) {
               controller.enqueue(envelope);
             } else {
               send({ type: "error", index: trackIndex });
-              console.error(`[prepare-playlist] track ${trackIndex} failed after ${MAX_RETRIES + 1} attempts:`, result.reason);
+              logEvent("api.prepare-playlist.track_failed_after_attempts");
             }
           }
         }
@@ -146,6 +145,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Playlist preparation failed";
-    return NextResponse.json({ error: message, requestId: logId }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const POST = withRequestLogging(handlePOST, "api.prepare-playlist.started");

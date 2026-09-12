@@ -1,3 +1,4 @@
+import { withRequestLogging } from "@/lib/request-logging";
 import { NextResponse } from "next/server";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -12,7 +13,7 @@ async function check(name: string, fn: () => Promise<boolean>): Promise<{ name: 
   }
 }
 
-export async function GET() {
+async function handleGET() {
   const start = Date.now();
 
   const checks = await Promise.all([
@@ -117,3 +118,5 @@ export async function GET() {
     env,
   });
 }
+
+export const GET = withRequestLogging(handleGET, "api.health.started");

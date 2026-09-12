@@ -1,3 +1,5 @@
+import { withRequestLogging } from "@/lib/request-logging";
+import { logEvent } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -18,8 +20,7 @@ import { setCatalogIds } from "@/lib/mp4-catalog";
 import { rateLimit } from "@/lib/ratelimit";
 import { incrementDownloads } from "@/lib/counter";
 import { resolveTrack } from "@/lib/resolve-track";
-import { getRequestSource } from "@/lib/request-source";
-import { getClientIp, getRequestLogId, summarizeUrlForLogs } from "@/lib/request-privacy";
+import { getClientIp } from "@/lib/request-privacy";
 import { verifyProofOfWork } from "@/lib/proof-of-work-verify";
 import { prepareTrackAssets } from "@/lib/track-prep";
 
@@ -27,13 +28,13 @@ const execFileAsync = promisify(execFile);
 
 export const maxDuration = 120;
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   let tempDir: string | null = null;
-  const logId = getRequestLogId(request);
+
 
   try {
     const ip = getClientIp(request);
-    const source = getRequestSource(request);
+
     const { allowed, retryAfter } = rateLimit(`dl:${ip}`, 30, 60_000);
     if (!allowed) {
       return NextResponse.json(
@@ -57,9 +58,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
     }
 
-    console.log(
-      `[download] [${source}] ${logId} → ${summarizeUrlForLogs(url)}${requestedFormat ? ` (${requestedFormat})` : ""}`
-    );
+    logEvent("api.download.request_received");
 
     const platform = detectPlatform(url);
     if (!platform) {
@@ -88,8 +87,8 @@ export async function POST(request: NextRequest) {
       genreSource,
       syncedLyrics,
     });
-    console.log(`[lyrics] ${track.artist} - ${track.name}: ${embeddedLyrics ? `found (${embeddedLyrics.length} chars)` : "not found"}`);
-    if (catalogIds) console.log(`[itunes] matched: cnID=${catalogIds.trackId} plID=${catalogIds.collectionId}`);
+    logEvent("api.download.request_received");
+    if (catalogIds) logEvent("api.download.matched_cnid_plid");
 
     // Step 3: Embed metadata using ffmpeg
     // Only allow lossless output if source audio is actually lossless (FLAC from Deezer or Tidal)
@@ -311,8 +310,8 @@ export async function POST(request: NextRequest) {
 
     incrementDownloads().catch(() => {});
     return new NextResponse(new Uint8Array(finalBuffer), { headers: responseHeaders });
-  } catch (error) {
-    console.error(`[download] ${logId} error:`, error);
+  } catch {
+    logEvent("api.download.error");
     return NextResponse.json({ error: "download failed — please try again" }, { status: 500 });
   } finally {
     if (tempDir) {
@@ -326,3 +325,5 @@ export async function POST(request: NextRequest) {
     }
   }
 }
+
+export const POST = withRequestLogging(handlePOST, "api.download.started");
