@@ -1,0 +1,64 @@
+name: Smoke test Docker image
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: Published image reference including its sha256 digest
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Published image reference including its sha256 digest
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux/amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify container startup and bundled tools
+        env:
+          IMAGE: ${{ inputs.image }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          trap 'docker rm -f yoink-release >/dev/null 2>&1 || true' EXIT
+          docker run --detach --init --pull always --platform "$PLATFORM" \
+            --name yoink-release --publish 127.0.0.1:3000:3000 "$IMAGE"
+          healthy=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --max-time 15 http://127.0.0.1:3000/api/health >/dev/null; then
+              healthy=true
+              break
+            fi
+            sleep 2
+          done
+          if [ "$healthy" != true ]; then
+            echo "::error::Release image failed its health check on $PLATFORM"
+            exit 1
+          fi
+          docker exec yoink-release ffmpeg -version >/dev/null
+          docker exec yoink-release yt-dlp --version
+          echo "- $PLATFORM: health check, ffmpeg, and yt-dlp passed" >> "$GITHUB_STEP_SUMMARY"
