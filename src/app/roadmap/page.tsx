@@ -1,6 +1,5 @@
-"use client";
-
 import Link from "next/link";
+import { releases } from "@/lib/release-history";
 
 type Status = "shipped" | "in-progress" | "planned";
 
@@ -86,7 +85,7 @@ const items: RoadmapItem[] = [
   },
   {
     title: "docker self-hosting",
-    description: "dockerfile and docker-compose for running yoink on your own hardware. full control, no rate limits.",
+    description: "prebuilt amd64 and arm64 release images, docker compose, and a source-build option for running yoink on your own hardware.",
     status: "shipped",
     tag: "core",
   },
@@ -104,7 +103,7 @@ const items: RoadmapItem[] = [
   },
   {
     title: "yt-dlp fallback",
-    description: "yt-dlp as a reliable youtube audio source when piped instances are down. self-hosted instances now work out of the box with zero configuration.",
+    description: "direct youtube audio downloads through yt-dlp when piped cannot supply a stream. provider credentials are optional; source availability can still vary.",
     status: "shipped",
     tag: "audio",
   },
@@ -122,7 +121,7 @@ const items: RoadmapItem[] = [
   },
   {
     title: "client-side encoding",
-    description: "ffmpeg runs in your browser via webassembly. audio conversion happens locally — faster downloads, less server load.",
+    description: "ffmpeg can convert audio in your browser through webassembly, with a server fallback when browser conversion fails or times out.",
     status: "shipped",
     tag: "audio",
   },
@@ -146,7 +145,7 @@ const items: RoadmapItem[] = [
   },
   {
     title: "security hardening",
-    description: "ip spoofing protection, proof-of-work on all routes, health endpoint redaction, error boundaries, and security headers.",
+    description: "request validation, proof-of-work checks for downloads, error boundaries, security headers, and dependency monitoring.",
     status: "shipped",
     tag: "core",
   },
@@ -249,17 +248,41 @@ export default function RoadmapPage() {
       <section className="px-6 pt-20 sm:pt-32 pb-16 sm:pb-24 max-w-2xl mx-auto">
         <div className="space-y-6 animate-fade-in-up" style={{ opacity: 0 }}>
           <p className="text-xs text-lavender uppercase tracking-[0.3em] font-bold">
-            roadmap
+            changelog &amp; roadmap
           </p>
           <h1 className="text-5xl sm:text-7xl font-bold leading-[0.95] tracking-tight text-text">
-            what&apos;s next
+            what&apos;s new.
             <br />
-            <span className="text-lavender">for yoink.</span>
+            <span className="text-lavender">what&apos;s next.</span>
           </h1>
           <p className="text-lg text-subtext0/80 leading-relaxed max-w-md">
             everything we&apos;ve shipped, what we&apos;re building, and
             where we&apos;re headed.
           </p>
+        </div>
+      </section>
+
+      <section id="changelog" aria-labelledby="changelog-heading" className="scroll-mt-24 px-6 pb-16 max-w-2xl mx-auto">
+        <h2 id="changelog-heading" className="text-xs text-lavender uppercase tracking-[0.3em] font-bold mb-6">
+          release history
+        </h2>
+        <div className="space-y-4">
+          {releases.map((release, index) => (
+            <details key={release.version} open={index === 0} className="border border-surface0/60 rounded-lg bg-mantle/40 p-5 sm:p-6">
+              <summary className="cursor-pointer text-text marker:text-lavender">
+                <span className="text-sm font-bold text-lavender">v{release.version}</span>
+                <span className="block mt-2 text-base font-bold text-text">{release.title}</span>
+                <time dateTime={release.date} className="block mt-2 text-xs text-overlay1">{release.dateLabel}</time>
+              </summary>
+              <p className="mt-5 text-sm leading-relaxed text-subtext0">{release.summary}</p>
+              <ul className="mt-4 pl-4 space-y-3 list-disc text-xs leading-relaxed text-subtext0/80 marker:text-lavender">
+                {release.changes.map((change) => <li key={change}>{change}</li>)}
+              </ul>
+              <a href={`https://github.com/yoinkify/yoink/releases/tag/v${release.version}`} className="inline-block mt-5 text-xs text-lavender underline underline-offset-4 hover:text-mauve">
+                full release notes on github
+              </a>
+            </details>
+          ))}
         </div>
       </section>
 

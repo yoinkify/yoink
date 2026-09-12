@@ -1,0 +1,35 @@
+export const releases = [
+  {
+    version: "3.1.0",
+    date: "2026-09-12",
+    dateLabel: "september 12, 2026",
+    title: "docker images, better metadata, and private feedback",
+    summary: "everything shipped since v3.0.0, including the fixes and improvements from april through september.",
+    changes: [
+      "prebuilt docker images for amd64 and arm64, with version tags, a latest tag for stable releases, and a compose file for running without a local build.",
+      "more consistent spotify metadata through the unfurl pipeline, shared download preparation, and better caching and image fallbacks.",
+      "correct artist, album artist, and compilation tags across individual tracks, playlists, and browser conversion.",
+      "a private feedback status inbox on the device where you submitted a report, plus optional browser details and fixes for repeated status refreshes.",
+      "browser-based proof-of-work verification, with fresh tokens for each request, a retry for expired verification, and more tolerance for mobile clock drift and background tabs.",
+      "more time for slower browser conversions before server fallback, clearer download errors, and inputs that avoid unwanted zoom on ios safari.",
+      "clearer privacy information and structured diagnostic logs that omit user content and direct identifiers, with automatic seven-day retention in the production launcher.",
+      "source throttling for playlists, expanded source-health reporting, security fixes, and updated dependencies including yt-dlp 2026.08.19.",
+      "a pnpm-based development and docker build setup, refreshed build automation, and a dedicated source-code link.",
+    ],
+  },
+  {
+    version: "3.0.0",
+    date: "2026-04-05",
+    dateLabel: "april 5, 2026",
+    title: "self-hosting and a multi-source download pipeline",
+    summary: "the v3.0 baseline, including features that were already available but missing from its original release notes.",
+    changes: [
+      "self-hosting without required provider credentials, with yt-dlp as a fallback for youtube audio.",
+      "spotify, apple music, and youtube links; single tracks, playlists, albums, artist top tracks, and search by song name.",
+      "audio from deezer, tidal, and youtube, with spotify, deezer, and itunes metadata fallbacks.",
+      "mp3 output and lossless flac or alac when a lossless source is available, plus browser-side conversion with a server fallback.",
+      "album art, artist and track metadata, explicit flags, synced lyrics, and apple music catalog identifiers for library imports.",
+      "an optional synced-lyrics toggle and musixmatch as a fallback when lrclib cannot find lyrics.",
+    ],
+  },
+] as const;

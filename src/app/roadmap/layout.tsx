@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "roadmap",
+  title: "changelog & roadmap",
   description:
-    "what we've shipped, what we're building, and what's planned next for yoink — the lossless spotify downloader.",
+    "yoink release notes, shipped improvements, and what's planned next — docker self-hosting, downloads, metadata, and more.",
   alternates: { canonical: "/roadmap" },
 };
 
