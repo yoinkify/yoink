@@ -1,3 +1,4 @@
+import { logEvent } from "@/lib/logger";
 import {
   detectUrlType,
   getAlbumInfo,
@@ -14,14 +15,14 @@ import {
   searchDeezerStructured,
 } from "./resolve-track";
 
-export async function loadPlaylistWithFallback(url: string, logPrefix: string): Promise<PlaylistInfo | null> {
+export async function loadPlaylistWithFallback(url: string): Promise<PlaylistInfo | null> {
   const urlType = detectUrlType(url);
 
   if (urlType === "album") {
     try {
       return await getAlbumInfo(url);
-    } catch (error) {
-      console.log(`${logPrefix} album API failed:`, error instanceof Error ? error.message : error);
+    } catch {
+      logEvent("playlist-workflow.album_api_failed");
       return resolveAlbum(url);
     }
   }
@@ -29,25 +30,25 @@ export async function loadPlaylistWithFallback(url: string, logPrefix: string): 
   if (urlType === "artist") {
     try {
       return await getArtistTopTracks(url);
-    } catch (error) {
-      console.log(`${logPrefix} artist API failed:`, error instanceof Error ? error.message : error);
+    } catch {
+      logEvent("playlist-workflow.artist_api_failed");
       return resolveArtist(url);
     }
   }
 
   try {
     return await getPlaylistInfo(url);
-  } catch (error) {
-    console.log(`${logPrefix} playlist API failed:`, error instanceof Error ? error.message : error);
+  } catch {
+    logEvent("playlist-workflow.playlist_api_failed");
     return resolvePlaylist(url);
   }
 }
 
-export async function enrichPlaylistTracks(tracks: TrackInfo[], logPrefix: string): Promise<TrackInfo[]> {
+export async function enrichPlaylistTracks(tracks: TrackInfo[]): Promise<TrackInfo[]> {
   const needsEnrichment = tracks.some((track) => !track.isrc && !track.albumArt);
   if (!needsEnrichment) return tracks;
 
-  console.log(`${logPrefix} enriching`, tracks.length, "scraped tracks with metadata");
+  logEvent("playlist-workflow.enriching");
 
   return Promise.all(
     tracks.map(async (track) => {

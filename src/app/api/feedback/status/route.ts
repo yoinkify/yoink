@@ -1,8 +1,10 @@
+import { withRequestLogging } from "@/lib/request-logging";
+import { logEvent } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/ratelimit";
 import { getLinearClient } from "@/lib/linear";
 import { readFeedbackTrackingToken } from "@/lib/feedback-tracking";
-import { getClientIp, getRequestLogId } from "@/lib/request-privacy";
+import { getClientIp } from "@/lib/request-privacy";
 
 const MAX_TOKENS_PER_REQUEST = 10;
 
@@ -26,9 +28,7 @@ function toIsoString(value: string | Date | null | undefined): string {
   return Number.isNaN(date.getTime()) ? new Date(0).toISOString() : date.toISOString();
 }
 
-export async function POST(request: NextRequest) {
-  const logId = getRequestLogId(request);
-
+async function handlePOST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
     const { allowed, retryAfter } = rateLimit(`feedback-status:${ip}`, 30, 60_000);
@@ -83,8 +83,10 @@ export async function POST(request: NextRequest) {
       reports,
       missingTokens: [...missingTokens, ...resolved.flatMap((entry) => ("missingToken" in entry ? [entry.missingToken] : []))],
     });
-  } catch (error) {
-    console.error("[feedback-status] error:", error instanceof Error ? error.message : error, logId);
-    return NextResponse.json({ error: "something went wrong", requestId: logId }, { status: 500 });
+  } catch {
+    logEvent("api.feedback.status.error");
+    return NextResponse.json({ error: "something went wrong" }, { status: 500 });
   }
 }
+
+export const POST = withRequestLogging(handlePOST, "api.feedback.status.started");

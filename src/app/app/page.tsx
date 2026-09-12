@@ -182,8 +182,8 @@ export default function Home() {
             ? "320"
             : `${metadata.sourceBitrate}`;
         return { source: audioSource, bitrate: qualityLabel };
-      } catch (err) {
-        console.warn("[client-ffmpeg] failed, falling back to server:", err);
+      } catch {
+        console.warn("page.failed_falling_back_to_server");
         setDownloadPhase("Converting on server...");
       }
     }
@@ -286,8 +286,8 @@ export default function Home() {
               next[index] = "done";
               return next;
             });
-          } catch (err) {
-            console.warn(`[client-ffmpeg] track ${index} failed, trying server fallback:`, err);
+          } catch {
+            console.warn("page.track_failed_trying_server_fallback");
             try {
               const track = playlist.tracks[index];
               const trackUrl = track.spotifyUrl || originalUrl;
@@ -419,8 +419,8 @@ export default function Home() {
         setState("done");
         setTimeout(() => setState("ready"), 3000);
         return;
-      } catch (err) {
-        console.warn("[client-ffmpeg] playlist failed entirely, falling back to server:", err);
+      } catch {
+        console.warn("page.playlist_failed_entirely_falling_back_to_server");
         setTrackStatuses(new Array(playlist.tracks.length).fill("pending"));
       }
     }
