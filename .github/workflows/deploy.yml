@@ -50,6 +50,8 @@ jobs:
 
       - name: Setup Blacksmith Builder
         uses: useblacksmith/setup-docker-builder@v2
+        with:
+          cache-key: Dockerfile
 
       - name: Build deploy image
         uses: useblacksmith/build-push-action@v2
