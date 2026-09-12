@@ -50,15 +50,28 @@ nothing is stored on the server after your request completes.
 
 ### docker (recommended)
 
+published releases provide prebuilt images at `ghcr.io/yoinkify/yoink` for Linux x86-64 and ARM64.
+
 ```bash
-git clone https://github.com/heysonder/yoink.git
+git clone https://github.com/yoinkify/yoink.git
 cd yoink
-docker compose up -d
+cp .env.example .env
+docker compose -f docker-compose.release.yml up -d --pull always
 ```
 
-that's it — yoink works out of the box with zero configuration. audio is sourced from youtube via yt-dlp, and metadata comes from public APIs. for lossless audio or better reliability, copy `.env.example` to `.env` and add your credentials (see below).
+that's it — yoink works out of the box with zero configuration. audio is sourced from youtube via yt-dlp, and metadata comes from public APIs. for lossless audio or better reliability, add your credentials to `.env` (see below).
 
 yoink will be running on `http://localhost:3000`.
+
+the command above also upgrades an existing installation to `latest`. to pin a version, add `YOINK_VERSION=<release-tag>` to `.env`, using the exact tag from the [releases page](https://github.com/yoinkify/yoink/releases), including any `v` prefix. prereleases are available by their release tag and do not update `latest`.
+
+to build from source instead, use `docker compose up -d --build` after cloning and creating `.env`.
+
+### publishing Docker releases
+
+publish a GitHub release whose tag includes `.github/workflows/release.yml`. the workflow builds the tagged source and pushes its image to GHCR using the built-in `GITHUB_TOKEN`; no additional registry secrets are needed. each stable release updates `latest`, so publish older maintenance releases with care. drafts do not publish images.
+
+after the first successful publish, set the `yoink` container package visibility to **public** in the organization's package settings so anyone can pull it without signing in. GitHub creates new container packages as private by default ([registry documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)). the image becomes available after the **Publish Docker release** workflow succeeds.
 
 ### local dev
 

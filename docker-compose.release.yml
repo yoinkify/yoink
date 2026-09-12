@@ -1,0 +1,22 @@
+services:
+  yoink:
+    image: ghcr.io/yoinkify/yoink:${YOINK_VERSION:-latest}
+    init: true
+    ports:
+      - "3000:3000"
+    env_file: .env
+    restart: unless-stopped
+    volumes:
+      - yoink-logs:/app/logs
+    logging:
+      # Avoid an unmanaged second copy of application output.
+      driver: "none"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  yoink-logs:
