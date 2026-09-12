@@ -1,17 +1,17 @@
+import { withRequestLogging } from "@/lib/request-logging";
+import { logEvent } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/ratelimit";
 import { createFeedbackTrackingToken } from "@/lib/feedback-tracking";
 import { getLinearClient } from "@/lib/linear";
-import { getClientIp, getRequestLogId, summarizeTextForLogs } from "@/lib/request-privacy";
+import { getClientIp } from "@/lib/request-privacy";
 
 const TEAM_KEY = "YK";
 const PROJECT_NAME = "External Feedback Intake + Linear Triage";
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 
-export async function POST(request: NextRequest) {
-  const logId = getRequestLogId(request);
-
+async function handlePOST(request: NextRequest) {
   try {
     // Rate limit
     const ip = getClientIp(request);
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     const teams = await client.teams();
     const team = teams.nodes.find((t) => t.key === TEAM_KEY);
     if (!team) {
-      console.error("[feedback] yoinkify team not found");
+      logEvent("api.feedback.yoinkify_team_not_found");
       return NextResponse.json({ error: "internal configuration error" }, { status: 500 });
     }
 
@@ -104,15 +104,15 @@ export async function POST(request: NextRequest) {
           if (uploadRes.ok) {
             imageUrl = assetUrl;
           } else {
-            console.error("[feedback] image upload PUT failed:", uploadRes.status);
+            logEvent("api.feedback.image_upload_put_failed", uploadRes.status);
             imageUploadFailed = true;
           }
         } else {
-          console.error("[feedback] no upload URL from Linear");
+          logEvent("api.feedback.no_upload_url_from_linear");
           imageUploadFailed = true;
         }
-      } catch (e) {
-        console.error("[feedback] image upload error:", e instanceof Error ? e.message : e);
+      } catch {
+        logEvent("api.feedback.image_upload_error");
         imageUploadFailed = true;
       }
     }
@@ -141,9 +141,7 @@ export async function POST(request: NextRequest) {
     });
 
     const issue = await issuePayload.issue;
-    console.log(
-      `[feedback] [${type}] ${logId} → created ${issue?.identifier || "issue"} (${summarizeTextForLogs(title.trim(), 40)})`
-    );
+    logEvent("api.feedback.created");
 
     return NextResponse.json({
       success: true,
@@ -156,8 +154,10 @@ export async function POST(request: NextRequest) {
             ? issue.updatedAt
             : null,
     });
-  } catch (error) {
-    console.error("[feedback] error:", error instanceof Error ? error.message : error);
-    return NextResponse.json({ error: "something went wrong", requestId: logId }, { status: 500 });
+  } catch {
+    logEvent("api.feedback.error");
+    return NextResponse.json({ error: "something went wrong" }, { status: 500 });
   }
 }
+
+export const POST = withRequestLogging(handlePOST, "api.feedback.started");

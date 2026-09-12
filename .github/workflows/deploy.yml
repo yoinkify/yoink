@@ -120,8 +120,7 @@ jobs:
           echo "== docker compose ps =="
           docker compose ps
           echo
-          echo "== recent yoink logs =="
-          docker compose logs --tail=80 yoink
+          echo "Request logs stay on the VPS under /app/logs; they are not copied into Actions."
           DIAG
 
       - name: Post-deploy health summary

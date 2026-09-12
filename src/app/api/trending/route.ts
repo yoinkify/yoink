@@ -1,7 +1,8 @@
+import { withRequestLogging } from "@/lib/request-logging";
 import { NextResponse } from "next/server";
 import { getTrending } from "@/lib/spotify";
 
-export async function GET() {
+async function handleGET() {
   try {
     const songs = await getTrending(10);
     return NextResponse.json({ songs });
@@ -9,3 +10,5 @@ export async function GET() {
     return NextResponse.json({ songs: [] });
   }
 }
+
+export const GET = withRequestLogging(handleGET, "api.trending.started");

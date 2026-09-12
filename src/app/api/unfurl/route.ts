@@ -1,9 +1,10 @@
+import { withRequestLogging } from "@/lib/request-logging";
+import { logEvent } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { detectPlatform } from "@/lib/spotify";
 import { getSpotifyFromUrl, type SpotifyFromUrlResponse } from "@/lib/resolve-track";
 import { rateLimit } from "@/lib/ratelimit";
-import { getRequestSource } from "@/lib/request-source";
-import { getClientIp, getRequestLogId, summarizeUrlForLogs } from "@/lib/request-privacy";
+import { getClientIp } from "@/lib/request-privacy";
 
 const UNFURL_CACHE_TTL = 15 * 60 * 1000;
 const UNFURL_CACHE_MAX = 200;
@@ -72,12 +73,10 @@ function setCachedUnfurl(key: string, data: SpotifyFromUrlResponse) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  const logId = getRequestLogId(request);
-
+async function handleGET(request: NextRequest) {
   try {
     const ip = getClientIp(request);
-    const source = getRequestSource(request);
+
     const { allowed, retryAfter } = rateLimit(`unfurl:${ip}`, 10, 60_000);
     if (!allowed) {
       return NextResponse.json(
@@ -87,7 +86,7 @@ export async function GET(request: NextRequest) {
     }
 
     const url = request.nextUrl.searchParams.get("url")?.trim();
-    console.log(`[unfurl] [${source}] ${logId} → ${url ? summarizeUrlForLogs(url) : "invalid"}`);
+    logEvent("api.unfurl.request_received");
 
     if (!url) {
       return NextResponse.json({ error: "url is required" }, { status: 400 });
@@ -125,6 +124,8 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to unfurl url";
-    return NextResponse.json({ error: message, requestId: logId }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const GET = withRequestLogging(handleGET, "api.unfurl.started");

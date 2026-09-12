@@ -1,3 +1,4 @@
+import { logEvent } from "@/lib/logger";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { request as httpsRequest } from "https";
@@ -12,7 +13,7 @@ function getLrclibBase(): string {
 async function lrclibGet(path: string): Promise<string> {
   const base = getLrclibBase();
   const url = `${base}${path}`;
-  console.log(`[lyrics] fetching: ${url.slice(0, 120)}`);
+  logEvent("lyrics.fetching");
 
   // If using a proxy, regular fetch should work fine
   if (process.env.LRCLIB_PROXY_URL) {
@@ -79,12 +80,12 @@ async function fetchFromLrclib(
     const raw = await lrclibGet(
       `/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`
     );
-    console.log(`[lyrics] get response length: ${raw.length}`);
+    logEvent("lyrics.get_response_length");
     const data = JSON.parse(raw);
     const lyrics = data.syncedLyrics || data.plainLyrics || null;
     if (lyrics) return lyrics;
-  } catch (e) {
-    console.log(`[lyrics] get failed: ${e instanceof Error ? e.message : e}`);
+  } catch {
+    logEvent("lyrics.get_failed");
   }
 
   // Fall back to search endpoint (more forgiving matching)
@@ -92,7 +93,7 @@ async function fetchFromLrclib(
     const raw = await lrclibGet(
       `/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`
     );
-    console.log(`[lyrics] search response length: ${raw.length}`);
+    logEvent("lyrics.search_response_length");
     const results = JSON.parse(raw);
     if (!Array.isArray(results) || results.length === 0) return null;
 
@@ -104,8 +105,8 @@ async function fetchFromLrclib(
     }
 
     return null;
-  } catch (e) {
-    console.log(`[lyrics] search failed: ${e instanceof Error ? e.message : e}`);
+  } catch {
+    logEvent("lyrics.search_failed");
     return null;
   }
 }

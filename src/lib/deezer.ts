@@ -1,3 +1,4 @@
+import { logEvent } from "@/lib/logger";
 import { createHash } from "crypto";
 import type { TrackInfo } from "./spotify";
 
@@ -340,7 +341,7 @@ async function getMediaUrl(
       signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) {
-      console.log("[deezer] media API HTTP error:", res.status);
+      logEvent("deezer.media_api_http_error", res.status);
       return null;
     }
 
@@ -350,14 +351,14 @@ async function getMediaUrl(
       // Log why it failed
       const errors = data.data?.[0]?.errors;
       if (errors) {
-        console.log("[deezer] media API errors:", JSON.stringify(errors));
+        logEvent("deezer.media_api_errors");
       } else {
-        console.log("[deezer] media API response (no URL):", JSON.stringify(data).substring(0, 300));
+        logEvent("deezer.media_api_response_no_url");
       }
     }
     return url || null;
-  } catch (e) {
-    console.log("[deezer] media API exception:", e);
+  } catch {
+    logEvent("deezer.media_api_exception");
     return null;
   }
 }
@@ -375,7 +376,7 @@ async function getDeezerSession(
         signal: AbortSignal.timeout(10000),
       }
     );
-    console.log("[deezer] getUserData status:", tokenRes.status);
+    logEvent("deezer.getuserdata_status", tokenRes.status);
     if (!tokenRes.ok) return null;
 
     // Capture sid cookie from response for CSRF validation
@@ -388,15 +389,14 @@ async function getDeezerSession(
         break;
       }
     }
-    console.log("[deezer] sid cookie:", sid ? "present" : "missing");
+    logEvent("deezer.sid_cookie");
 
     const tokenData = await tokenRes.json();
     const apiToken = tokenData.results?.checkForm;
-    const userId = tokenData.results?.USER?.USER_ID;
     const licenseToken = tokenData.results?.USER?.OPTIONS?.license_token || "";
-    console.log("[deezer] API token:", apiToken ? "present" : "missing", "USER_ID:", userId, "license_token:", licenseToken ? "present" : "missing");
+    logEvent("deezer.api_token");
     if (!apiToken) {
-      console.warn("[deezer] ARL token may be expired — no API token returned");
+      logEvent("deezer.arl_token_may_be_expired_no_api_token_returned");
       return null;
     }
 
@@ -416,14 +416,14 @@ async function getDeezerSession(
         signal: AbortSignal.timeout(10000),
       }
     );
-    console.log("[deezer] song.getData status:", trackRes.status);
+    logEvent("deezer.song_getdata_status", trackRes.status);
     if (!trackRes.ok) return null;
 
     const trackData = await trackRes.json();
     const r = trackData.results;
-    console.log("[deezer] song.getData results keys:", r ? Object.keys(r).slice(0, 10) : "null", "error:", trackData.error);
+    logEvent("deezer.song_getdata_results_keys");
     if (!r?.SNG_ID || !r?.MD5_ORIGIN) {
-      console.log("[deezer] missing SNG_ID or MD5_ORIGIN — SNG_ID:", r?.SNG_ID, "MD5_ORIGIN:", r?.MD5_ORIGIN);
+      logEvent("deezer.missing_sng_id_or_md5_origin_sng_id");
       return null;
     }
 
@@ -442,8 +442,8 @@ async function getDeezerSession(
       licenseToken,
       cookieHeader,
     };
-  } catch (e) {
-    console.error("[deezer] getDeezerSession error:", e);
+  } catch {
+    logEvent("deezer.getdeezersession_error");
     return null;
   }
 }
@@ -564,31 +564,23 @@ export async function fetchDeezerAudio(
 ): Promise<DeezerAudioResult | null> {
   const arl = getArlToken();
   if (!arl) {
-    console.log("[deezer] no ARL token set");
+    logEvent("deezer.no_arl_token_set");
     return null;
   }
-  console.log("[deezer] ARL token present, length:", arl.length);
+  logEvent("deezer.arl_token_present_length");
 
   try {
     const session = await getDeezerSession(deezerId, arl);
     if (!session) {
-      console.log("[deezer] getDeezerSession returned null — ARL may be expired");
+      logEvent("deezer.getdeezersession_returned_null_arl_may_be_expired");
       return null;
     }
     const { trackData, licenseToken } = session;
-    console.log("[deezer] got track data:", {
-      SNG_ID: trackData.SNG_ID,
-      ISRC: trackData.ISRC,
-      DURATION: trackData.DURATION,
-      MP3_320: trackData.FILESIZE_MP3_320,
-      MP3_128: trackData.FILESIZE_MP3_128,
-      FLAC: trackData.FILESIZE_FLAC,
-      TRACK_TOKEN: trackData.TRACK_TOKEN ? "present" : "missing",
-    });
+    logEvent("deezer.got_track_data");
 
     // Verify this is the right track
     if (!verifyMatch(trackData, track)) {
-      console.warn("[deezer] Track mismatch — deezer ISRC:", trackData.ISRC, "spotify ISRC:", track.isrc, "deezer duration:", trackData.DURATION, "spotify durationMs:", track.durationMs);
+      logEvent("deezer.track_mismatch_deezer_isrc");
       return null;
     }
 
@@ -608,37 +600,37 @@ export async function fetchDeezerAudio(
       mediaFormat = "MP3_128";
       bitrate = 128;
     } else {
-      console.log("[deezer] no suitable format available");
+      logEvent("deezer.no_suitable_format_available");
       return null;
     }
-    console.log("[deezer] using format:", mediaFormat, bitrate === 0 ? "lossless" : `${bitrate}kbps`);
+    logEvent("deezer.using_format");
 
     // Get streaming URL via media API (the only working method — CDN proxy hostnames are retired)
     let audioUrl: string | null = null;
     if (trackData.TRACK_TOKEN && licenseToken) {
-      console.log("[deezer] trying media API for", mediaFormat);
+      logEvent("deezer.trying_media_api_for");
       audioUrl = await getMediaUrl(trackData.TRACK_TOKEN, mediaFormat, licenseToken);
 
       // If requested format failed, try falling back to lower qualities
       if (!audioUrl && mediaFormat === "FLAC") {
-        console.log("[deezer] FLAC unavailable via media API, trying MP3_320");
+        logEvent("deezer.flac_unavailable_via_media_api_trying_mp3_320");
         audioUrl = await getMediaUrl(trackData.TRACK_TOKEN, "MP3_320", licenseToken);
         if (audioUrl) { mediaFormat = "MP3_320"; bitrate = 320; outputFormat = "mp3"; }
       }
       if (!audioUrl && mediaFormat !== "MP3_128") {
-        console.log("[deezer] trying MP3_128 as last resort");
+        logEvent("deezer.trying_mp3_128_as_last_resort");
         audioUrl = await getMediaUrl(trackData.TRACK_TOKEN, "MP3_128", licenseToken);
         if (audioUrl) { mediaFormat = "MP3_128"; bitrate = 128; outputFormat = "mp3"; }
       }
 
       if (audioUrl) {
-        console.log("[deezer] media API URL (", mediaFormat, "):", audioUrl.substring(0, 80) + "...");
+        logEvent("deezer.media_api_url");
       } else {
-        console.log("[deezer] media API returned no URL for any format");
+        logEvent("deezer.media_api_returned_no_url_for_any_format");
         return null;
       }
     } else {
-      console.log("[deezer] missing track token or license token — cannot fetch audio");
+      logEvent("deezer.missing_track_token_or_license_token_cannot_fetch_audio");
       return null;
     }
 
@@ -646,19 +638,19 @@ export async function fetchDeezerAudio(
       signal: AbortSignal.timeout(60000), // FLAC files are larger, need more time
     });
     if (!audioRes.ok) {
-      console.log("[deezer] audio fetch failed:", audioRes.status);
+      logEvent("deezer.audio_fetch_failed", audioRes.status);
       return null;
     }
 
     const encrypted = Buffer.from(await audioRes.arrayBuffer());
-    console.log("[deezer] downloaded encrypted:", encrypted.length, "bytes");
+    logEvent("deezer.downloaded_encrypted");
     if (encrypted.length === 0) return null;
 
     const decrypted = decryptAudio(encrypted, trackData.SNG_ID);
 
     return { buffer: decrypted, format: outputFormat, bitrate };
-  } catch (e) {
-    console.error("[deezer] Fetch failed:", e);
+  } catch {
+    logEvent("deezer.fetch_failed");
     return null;
   }
 }

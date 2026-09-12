@@ -1,21 +1,20 @@
+import { withRequestLogging } from "@/lib/request-logging";
+import { logEvent } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { detectPlatform } from "@/lib/spotify";
 import { rateLimit } from "@/lib/ratelimit";
 import { resolveTrack, getCached } from "@/lib/resolve-track";
-import { getRequestSource } from "@/lib/request-source";
 import { buildEnvelopeMetadata, packEnvelope } from "@/lib/envelope";
-import { getClientIp, getRequestLogId, summarizeUrlForLogs } from "@/lib/request-privacy";
+import { getClientIp } from "@/lib/request-privacy";
 import { verifyProofOfWork } from "@/lib/proof-of-work-verify";
 import { prepareTrackAssets } from "@/lib/track-prep";
 
 export const maxDuration = 120;
 
-export async function POST(request: NextRequest) {
-  const logId = getRequestLogId(request);
-
+async function handlePOST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
-    const source = getRequestSource(request);
+
     const { allowed, retryAfter } = rateLimit(`dl:${ip}`, 30, 60_000);
     if (!allowed) {
       return NextResponse.json(
@@ -38,9 +37,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
     }
 
-    console.log(
-      `[prepare] [${source}] ${logId} → ${summarizeUrlForLogs(url)}${requestedFormat ? ` (${requestedFormat})` : ""}`
-    );
+    logEvent("api.prepare.request_received");
 
     const platform = detectPlatform(url);
     if (!platform) {
@@ -85,6 +82,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Prepare failed";
-    return NextResponse.json({ error: message, requestId: logId }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const POST = withRequestLogging(handlePOST, "api.prepare.started");
