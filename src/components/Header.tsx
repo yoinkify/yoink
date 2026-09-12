@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { version } from "../../package.json";
+
+const versionLabel = `v${version.split(".").slice(0, 2).join(".")}`;
 
 export default function Header() {
   return (
@@ -23,7 +26,7 @@ export default function Header() {
           star on github
         </a>
         <span className="text-surface0/60">|</span>
-        <Link href="/roadmap" className="text-surface2 hover:text-lavender transition-colors duration-200">v3.0</Link>
+        <Link href="/roadmap#changelog" aria-label={`changelog for v${version}`} className="text-surface2 hover:text-lavender transition-colors duration-200">{versionLabel}</Link>
       </div>
     </header>
   );

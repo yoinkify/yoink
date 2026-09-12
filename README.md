@@ -4,6 +4,16 @@ paste a music link. get the file.
 
 **[yoinkify.com](https://yoinkify.com)**
 
+## latest release — v3.1.0
+
+- **prebuilt docker images** — public amd64 and arm64 images with version tags and a ready-to-run compose file
+- **better metadata** — spotify unfurl resolution, improved caching, and corrected artist, album artist, and compilation tags
+- **private feedback updates** — track reports from the browser where you submitted them, with optional browser details
+- **mobile and download fixes** — fewer false verification failures, more time for browser conversion, clearer errors, and less unwanted input zoom on ios
+- **privacy and maintenance** — clearer data-handling information, seven-day diagnostic log retention, source throttling, and refreshed dependencies and build tooling
+
+this release includes the changes shipped since v3.0.0, including earlier improvements that had not been collected in release notes. see the [v3.1.0 release notes](https://github.com/yoinkify/yoink/releases/tag/v3.1.0) and the site's [changelog and roadmap](https://yoinkify.com/roadmap#changelog) for the full history.
+
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/O5O31P50IY)
 
 feedback is greatly appreciated — i thoroughly read every request. **[leave feedback](https://yoinkify.com/r/f)**
@@ -50,7 +60,7 @@ nothing is stored on the server after your request completes.
 
 ### docker (recommended)
 
-published releases provide prebuilt images at `ghcr.io/yoinkify/yoink` for Linux x86-64 and ARM64.
+published releases provide prebuilt images at `ghcr.io/yoinkify/yoink` for linux amd64 and arm64.
 
 ```bash
 git clone https://github.com/yoinkify/yoink.git
@@ -67,11 +77,11 @@ the command above also upgrades an existing installation to `latest`. to pin a v
 
 to build from source instead, use `docker compose up -d --build` after cloning and creating `.env`.
 
-### publishing Docker releases
+### publishing docker releases
 
-publish a GitHub release whose tag includes `.github/workflows/release.yml`. the workflow builds the tagged source and pushes its image to GHCR using the built-in `GITHUB_TOKEN`; no additional registry secrets are needed. each stable release updates `latest`, so publish older maintenance releases with care. drafts do not publish images.
+publish a github release whose tag includes `.github/workflows/release.yml`. the workflow builds the tagged source and pushes its image to ghcr using the built-in `GITHUB_TOKEN`; no additional registry secrets are needed. each stable release updates `latest`, so publish older maintenance releases with care. drafts do not publish images.
 
-after the first successful publish, set the `yoink` container package visibility to **public** in the organization's package settings so anyone can pull it without signing in. GitHub creates new container packages as private by default ([registry documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)). the image becomes available after the **Publish Docker release** workflow succeeds.
+the official `yoink` container package is public and can be pulled without signing in. for a fork publishing its own package, github creates new container packages as private by default; set the package visibility to **public** after its first successful publish ([registry documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)). check the release workflow and smoke-test results before announcing an image.
 
 ### local dev
 
