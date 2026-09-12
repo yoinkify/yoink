@@ -61,4 +61,6 @@ jobs:
           fi
           docker exec yoink-release ffmpeg -version >/dev/null
           docker exec yoink-release yt-dlp --version
-          echo "- $PLATFORM: health check, ffmpeg, and yt-dlp passed" >> "$GITHUB_STEP_SUMMARY"
+          docker exec yoink-release node --version
+          docker exec yoink-release python3 -c 'import yt_dlp_ejs; from importlib.metadata import version; print("yt-dlp-ejs", version("yt-dlp-ejs"))'
+          echo "- $PLATFORM: health check, ffmpeg, yt-dlp, Node, and bundled EJS passed" >> "$GITHUB_STEP_SUMMARY"
