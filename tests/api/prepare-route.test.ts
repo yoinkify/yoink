@@ -107,7 +107,7 @@ describe("POST /api/prepare", () => {
     const response = await POST(request);
 
     expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({
+    await expect(response.json()).resolves.toMatchObject({
       error: "verification failed — please try again",
     });
   });
@@ -167,7 +167,7 @@ describe("POST /api/prepare", () => {
     const response = await POST(request);
 
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
+    await expect(response.json()).resolves.toMatchObject({
       error: "paste a spotify, apple music, or youtube link",
     });
   });

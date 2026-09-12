@@ -9,76 +9,78 @@ interface Section {
 
 const sections: Section[] = [
   {
-    title: "the short version",
+    title: "searches and downloads",
     content: [
-      "yoink doesn't have accounts and doesn't keep download history. we removed third-party analytics and keep data collection narrow: transient rate limiting, anonymized app logs for debugging, and any feedback you choose to submit.",
+      "when you search or paste a link, we process the search text, URL, and download options to find and deliver music. we send relevant search terms, links, and track details to music, metadata, and lyric providers.",
+      "audio is processed on our server or in your browser. some server processing creates temporary files, which the app attempts to remove when processing ends. interrupted requests or cleanup failures can leave temporary files behind.",
+      "we don't create user accounts or a personal download-history profile. we cache some links and metadata in server memory to speed up repeat requests. we also keep a total download count, without attaching individual users to it.",
     ],
   },
   {
-    title: "no accounts, no analytics, no cookies",
+    title: "request IDs and debugging",
     content: [
-      "yoink has no user accounts, no sign-ups, and no analytics scripts. we don't use google analytics, facebook pixel, umami, or any ad-tech tracker.",
-      "yoink does not set any cookies. we don't use cookies for tracking, authentication, or any other purpose.",
-      "the only browser-side storage used by the app is a couple of local flags: dismiss states for small notices, plus an opaque feedback-status token if you submit a feedback report and want this browser to show its current Linear status. those values stay in your browser and are not used for ads, analytics, or cross-site tracking.",
+      "when something goes wrong, a request ID helps us find out why.",
+      "each request gets a fresh random ID. it isn't based on your IP address or identity, and we don't reuse it to recognize you on later requests. you can share this ID with us when reporting a problem.",
+      "our application logs contain timestamps, request IDs, and technical events such as which processing step failed or which HTTP status a service returned. they exclude IP addresses, search text, submitted URLs, music titles, email addresses, feedback content, and raw error messages.",
+      "we normally keep these logs for six to seven days. cleanup runs automatically; if a server is offline, deletion resumes when it starts again.",
+      "a random ID doesn't make a record completely anonymous. if you send us an ID, we can connect that request to your report. separate infrastructure records may also allow events to be matched by time.",
     ],
   },
   {
-    title: "downloads and processing",
+    title: "preventing abuse and delivering the site",
     content: [
-      "audio files are fetched in real time and delivered to your browser. for some server-side conversion paths, temporary files may be written to the server's temp directory during processing and then deleted immediately after the request completes.",
-      "we don't keep user accounts, download history, or a permanent library of what you've requested.",
+      "we temporarily use your IP address in server memory to limit repeated requests and prevent abuse. inactive entries are normally cleared within a few minutes and are also cleared when the server restarts.",
+      "Cloudflare and our hosting provider process connection information to deliver and protect the site. their infrastructure logs may include IP addresses, timestamps, requested addresses, browser information, and response codes. these records are separate from our application logs.",
     ],
   },
   {
-    title: "rate limiting and app logs",
+    title: "feedback",
     content: [
-      "yoink uses your IP address in volatile server memory to rate limit requests and prevent abuse. that in-memory data is not written to our application database and resets when the server restarts.",
-      "our application logs use a random request ID (e.g. req-7f3a2b1c) that is generated fresh for each request and is not tied to your IP address or identity. there is no way to link two requests to the same person from the logs alone. we keep request-level debugging details like the endpoint used, the source platform, and limited request metadata so we can diagnose failures such as tracks not being sourced correctly.",
-      "our hosting provider may still generate infrastructure logs that can include IP addresses, timestamps, and status codes at the platform level.",
+      "feedback is optional. the form collects a report type, title, and description. you can also choose to include your email address, a screenshot, and browser information to help us investigate.",
+      "reports and screenshots are stored in our internal Linear workspace and its file storage. we use them to investigate problems and plan improvements. if you provide an email address, we use it to follow up about your report.",
+      "optional contact details and screenshots are removed within 90 days after the report is resolved. general issue text may remain in the product backlog and support history. you can email us to request correction or deletion of your submission.",
+      "please leave passwords, payment details, and other sensitive information out of reports, and check screenshots for private details before uploading them.",
     ],
   },
   {
-    title: "feedback submissions",
+    title: "cookies and browser storage",
     content: [
-      "if you use the in-app feedback form, we collect the report fields you submit: type, title, description, and optionally your email address and screenshot.",
-      "feedback submissions are sent to our internal Linear workspace for triage. if you include a screenshot, it is uploaded to Linear's file storage. only the site owner has access to that workspace. don't include passwords, payment details, private messages, or other sensitive personal data in feedback or screenshots.",
-      "if you submit feedback, this browser may also store an opaque local token so it can later ask our server for the current status of that exact report. the token stays on your device, does not identify you across devices, and cannot be used by the browser to read our Linear workspace directly.",
-      "we use an optional email address only if we need to follow up about your report. optional contact details and screenshots are kept for up to 90 days after a ticket is resolved, unless we still need them for an active issue. non-sensitive issue text may be kept longer as part of the product backlog and support history.",
-      "if you want a feedback submission corrected or deleted, email me@yoinkify.com and we'll handle it manually.",
+      "the yoink app doesn't use analytics scripts or tracking cookies.",
+      "we use local storage to remember dismissed notices and the status of feedback you've submitted. after a report, your browser saves a private status token and related timestamps. it sends that token to our server when checking the report's title and status.",
+      "you can remove these values by clearing yoink's site data in your browser. this resets your notices and removes saved feedback tracking from that browser. it does not delete the report from Linear.",
     ],
   },
   {
-    title: "third-party services",
+    title: "other services",
     content: [
-      "to fetch metadata and audio, yoink communicates with several third-party APIs on your behalf. these services may have their own privacy policies:",
-      "music metadata providers — for track details, artwork, search, and catalog matching. lyric providers such as lrclib and musixmatch — for lyrics. linear — for feedback intake. audio is sourced from third-party music services. the specific metadata providers we use may change over time based on availability and reliability.",
-      "yoink sends the minimum request data needed for those services to respond, such as track names, artist names, URLs, and feedback content you explicitly submit. we do not sell personal information or use ad-tech profiling.",
+      "alongside Cloudflare, our host, and Linear, yoink uses third-party services for music metadata, artwork, lyrics, and audio. depending on the request, these can include Spotify, Deezer, Apple/iTunes, Tidal, YouTube or Piped, Song.link, LRCLIB, and Musixmatch.",
+      "some artwork loads directly from a provider into your browser. that provider receives your IP address and browser request information. external sites you choose to visit handle your information under their own privacy policies.",
+      "we don't sell personal information or share it for targeted advertising.",
     ],
   },
   {
-    title: "self-hosted instances",
+    title: "your choices and rights",
     content: [
-      "if you self-host yoink using our docker image, your instance is entirely under your control. we have no visibility into self-hosted deployments and collect no data from them.",
+      "you can use downloads without submitting feedback or providing an email address.",
+      "where EU or UK data protection law applies, we rely on legitimate interests to operate the service, prevent abuse, investigate errors, and handle feedback. those interests are keeping yoink reliable and responding to the people who use it.",
+      "depending on applicable law and the information involved, you may have rights to access, correct, delete, or receive a portable copy of your personal information, or to restrict its use.",
+      <><strong className="font-semibold text-text">{"you may also object to processing based on legitimate interests."}</strong>{" email us to exercise that right."}</>,
+      <>{"send requests to "}<a href="mailto:me@yoinkify.com" className="text-lavender underline decoration-lavender/30 underline-offset-4 hover:text-mauve">{"me@yoinkify.com"}</a>{", with enough information to help us locate the relevant report or record. we may need to verify that the information relates to you. we may be unable to identify records that aren't linked to you, and we'll explain any limits that apply."}</>,
+      <>{"you can also complain to your local data protection authority. in the UK, that is the "}<a href="https://ico.org.uk/make-a-complaint/" className="text-lavender underline decoration-lavender/30 underline-offset-4 hover:text-mauve">{"Information Commissioner's Office"}</a>{"."}</>,
     ],
   },
   {
-    title: "your rights (GDPR & international users)",
+    title: "children and other yoink instances",
     content: [
-      "if you're in the EU, EEA, or UK, you have the right to access, correct, delete, or port any personal data we hold about you. you can also object to or restrict processing. our legal basis for the limited processing we do (rate limiting, debugging logs) is legitimate interest in keeping the service running and preventing abuse.",
-      "in practice, we hold almost no personal data — there are no accounts, no download history, and logs use pseudonymized identifiers. if you've submitted feedback with an email address or screenshot and want it deleted, email me@yoinkify.com and we'll handle it.",
-      "if you're in california, you have similar rights under the CCPA/CPRA. we don't sell personal information and have nothing to opt you out of.",
+      "yoink is not intended for children under 13. if you believe a child under 13 has submitted personal information, contact us so we can investigate and remove it as appropriate.",
+      "if you use a copy of yoink hosted by someone else, that operator is responsible for its privacy practices. this policy covers yoinkify.com.",
     ],
   },
   {
-    title: "children",
+    title: "changes and contact",
     content: [
-      "yoink is not directed at children under 13. we don't knowingly collect any personal information from anyone, let alone minors.",
-    ],
-  },
-  {
-    title: "changes",
-    content: [
-      "if we ever change how we handle data (we probably won't), we'll update this page. no email notifications — just check back here.",
+      "we'll update this policy when our practices change and show the revised date on this page. for significant changes, we'll also post a notice on the site.",
+      <>{"questions or data requests: "}<a href="mailto:me@yoinkify.com" className="text-lavender underline decoration-lavender/30 underline-offset-4 hover:text-mauve">{"me@yoinkify.com"}</a>{"."}</>,
     ],
   },
 ];
@@ -113,11 +115,11 @@ export default function PrivacyPage() {
             <span className="text-lavender">policy.</span>
           </h1>
           <p className="text-lg text-subtext0/80 leading-relaxed max-w-md">
-            we don&apos;t track you. we don&apos;t store your data. here&apos;s
-            the full breakdown.
+            no accounts. no advertising trackers. clear limits on what we
+            collect and keep.
           </p>
           <p className="text-xs text-overlay0/50">
-            last updated: april 12, 2026
+            last updated: september 7, 2026
           </p>
         </div>
       </section>
@@ -138,10 +140,9 @@ export default function PrivacyPage() {
             <p className="text-sm font-bold text-green">tldr</p>
           </div>
           <p className="text-sm text-subtext0/80 leading-relaxed">
-            no accounts. no analytics. no cookies. no download history. rate
-            limiting uses IPs in volatile memory, app logs use random
-            request IDs that can&apos;t be linked back to you, and feedback
-            is only collected when you choose to submit it.
+            we process your requests to deliver music, use limited diagnostics
+            to fix problems, and store feedback you choose to send. we don&apos;t
+            sell personal information or share it for targeted advertising.
           </p>
         </div>
       </section>
@@ -163,13 +164,13 @@ export default function PrivacyPage() {
                 <span className="text-2xl font-bold text-surface2">
                   {String(sectionIdx + 1).padStart(2, "0")}
                 </span>
-                <p className="text-sm font-bold text-text">{section.title}</p>
+                <h2 className="text-base font-bold text-text">{section.title}</h2>
               </div>
               <div className="pl-10 sm:pl-12 space-y-3">
                 {section.content.map((paragraph, i) => (
                   <p
                     key={i}
-                    className="text-sm text-subtext0/80 leading-relaxed"
+                    className="text-base text-subtext0 leading-7"
                   >
                     {paragraph}
                   </p>

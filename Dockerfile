@@ -34,7 +34,10 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --chown=nextjs:nodejs ops ./ops
+COPY --chown=nextjs:nodejs src/lib/log-events.json ./src/lib/log-events.json
+RUN mkdir -p /app/logs && chown nextjs:nodejs /app/logs && chmod 700 /app/logs
 
 USER nextjs
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["node", "ops/start-private.mjs"]

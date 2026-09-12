@@ -65,14 +65,10 @@ export async function encodeInBrowser(
   return new Promise<Uint8Array>((resolve, reject) => {
     // Track the most recent status so timeout errors can explain where it stalled.
     let lastStatusLabel = "no status received";
-    const startedAt = Date.now();
 
     const timer = setTimeout(() => {
       pending.delete(id);
-      const elapsedSec = Math.round((Date.now() - startedAt) / 1000);
-      console.warn(
-        `[client-ffmpeg] timeout after ${elapsedSec}s — last status: ${lastStatusLabel}`,
-      );
+      console.warn("ffmpeg-bridge.timeout_after_s_last_status");
       reject(new Error(`ffmpeg encoding timed out (last status: ${lastStatusLabel})`));
     }, timeoutMs);
 
