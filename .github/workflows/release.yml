@@ -51,6 +51,7 @@ jobs:
             type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
 
       - name: Build and publish release image
+        id: publish
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -60,3 +61,30 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=docker-release
           cache-to: type=gha,mode=max,scope=docker-release
+
+      - name: Smoke test published images
+        env:
+          IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}@${{ steps.publish.outputs.digest }}
+        run: |
+          set -euo pipefail
+          trap 'docker rm -f yoink-release >/dev/null 2>&1 || true' EXIT
+          for platform in linux/amd64 linux/arm64; do
+            docker run --detach --init --pull always --platform "$platform" \
+              --name yoink-release --publish 127.0.0.1:3000:3000 "$IMAGE"
+            healthy=false
+            for attempt in $(seq 1 30); do
+              if curl --fail --silent --max-time 5 http://127.0.0.1:3000/api/health >/dev/null; then
+                healthy=true
+                break
+              fi
+              sleep 2
+            done
+            if [ "$healthy" != true ]; then
+              echo "::error::Release image failed its health check on $platform"
+              exit 1
+            fi
+            docker exec yoink-release ffmpeg -version >/dev/null
+            docker exec yoink-release yt-dlp --version
+            docker rm -f yoink-release >/dev/null
+            echo "- $platform: health check, ffmpeg, and yt-dlp passed" >> "$GITHUB_STEP_SUMMARY"
+          done
