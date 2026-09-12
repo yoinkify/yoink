@@ -104,7 +104,7 @@ requires [ffmpeg](https://ffmpeg.org/download.html) installed locally.
 | `MUSIXMATCH_TOKEN` | no | musixmatch lyrics as fallback when lrclib misses |
 | `LRCLIB_PROXY_URL` | no | cloudflare worker proxy for lrclib if direct access is blocked |
 
-no env vars are required — yoink works out of the box with public APIs for metadata and youtube (via piped) for audio. however, public piped instances are unstable and may cause download failures — for reliable youtube downloads, [self-host piped](https://docs.piped.video/docs/self-hosting/) or provide deezer/tidal credentials. for lossless audio (flac/alac), you'll need a deezer or tidal account to provide the `DEEZER_ARL` or tidal credentials.
+no env vars are required — yoink uses public APIs for metadata and youtube for audio, with yt-dlp as a fallback when piped is unavailable. for lossless audio (flac/alac), you'll need a deezer or tidal account to provide the `DEEZER_ARL` or tidal credentials.
 
 ### getting lossless audio with deezer (self-hosted only)
 
@@ -123,7 +123,7 @@ the ARL token lasts 3-6 months before expiring. you can cancel the trial before 
 
 ### youtube audio source
 
-yoink uses youtube as a fallback audio source when deezer and tidal aren't configured. audio is fetched via [piped](https://github.com/TeamPiped/Piped), a youtube proxy. public piped instances can be unreliable — for best results, [self-host your own piped instance](https://docs.piped.video/docs/self-hosting/) and set `PIPED_API_URL` to point to it. note that youtube audio is ~160kbps opus, not lossless.
+yoink uses youtube as a fallback audio source when deezer and tidal aren't configured. it tries [piped](https://github.com/TeamPiped/Piped) first, then yt-dlp directly if piped is unavailable. the docker image includes Node and yt-dlp's matching JavaScript challenge-solving scripts, so this fallback needs no extra setup or runtime script downloads. you can optionally [self-host piped](https://docs.piped.video/docs/self-hosting/) and set `PIPED_API_URL` to point to it. youtube may still limit requests from individual IPs, and its audio is lossy rather than lossless.
 
 ## rate limits
 
@@ -137,6 +137,8 @@ default limits (per IP, in-memory):
 self-hosted instances have no rate limits by default — adjust in `src/lib/ratelimit.ts`.
 
 ## attribution
+
+thanks to [ded-2](https://github.com/ded-2) and their [yoink fork](https://github.com/ded-2/yoink) for identifying the yt-dlp JavaScript runtime and dependency setup. our implementation builds on that finding with shared runtime configuration and fallback verification.
 
 if you fork or self-host yoink, a "powered by [yoink](https://yoinkify.com)" mention is appreciated but not required.
 

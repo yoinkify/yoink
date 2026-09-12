@@ -9,6 +9,12 @@ import type { TrackInfo } from "./spotify";
 const execFileAsync = promisify(execFile);
 const YT_DLP = process.env.YT_DLP_PATH || "yt-dlp";
 
+function runYtdlp(args: string[], timeout: number) {
+  // Use the same Node executable as Yoink for YouTube's JavaScript challenges.
+  // The matching EJS scripts are installed with yt-dlp[default] at build time.
+  return execFileAsync(YT_DLP, ["--js-runtimes", `node:${process.execPath}`, ...args], { timeout });
+}
+
 const PIPED_INSTANCES = process.env.PIPED_API_URL
   ? [process.env.PIPED_API_URL]
   : [
@@ -86,13 +92,13 @@ async function pipedSearch(query: string, apiUrl: string): Promise<{ url: string
 
 async function ytdlpSearch(query: string): Promise<{ url: string; title: string; uploaderName: string; duration: number }[]> {
   try {
-    const { stdout } = await execFileAsync(YT_DLP, [
+    const { stdout } = await runYtdlp([
       `ytsearch5:${query}`,
       "--dump-json",
       "--no-download",
       "--flat-playlist",
       "--no-warnings",
-    ], { timeout: 20000 });
+    ], 20000);
 
     const results: { url: string; title: string; uploaderName: string; duration: number }[] = [];
     for (const line of stdout.trim().split("\n")) {
@@ -121,8 +127,13 @@ async function youtubeSearch(query: string): Promise<{ url: string; title: strin
   // Try piped first (faster, no subprocess)
   for (const instance of PIPED_INSTANCES) {
     logEvent("youtube.trying_piped_instance");
-    const results = await pipedSearch(query, instance);
-    if (results.length > 0) return results;
+    try {
+      const results = await pipedSearch(query, instance);
+      if (results.length > 0) return results;
+    } catch {
+      // An unreachable Piped instance must not prevent the yt-dlp fallback.
+      continue;
+    }
   }
 
   // Fall back to yt-dlp
@@ -205,14 +216,14 @@ export async function ytdlpDownload(videoId: string): Promise<{ buffer: Buffer; 
   const tempPath = join(/* turbopackIgnore: true */ tmpdir(), `yt-dlp-${videoId}-${Date.now()}`);
 
   try {
-    const { stdout } = await execFileAsync(YT_DLP, [
+    const { stdout } = await runYtdlp([
       `https://www.youtube.com/watch?v=${videoId}`,
       "-f", "bestaudio/best",
       "-o", `${tempPath}.%(ext)s`,
       "--no-warnings",
       "--no-playlist",
       "--print", "after_move:filepath",
-    ], { timeout: 60000 });
+    ], 60000);
 
     const filePath = stdout.trim().split("\n").pop()?.trim();
     if (!filePath) return null;
@@ -280,13 +291,13 @@ async function fetchVideoInfo(videoId: string): Promise<{ title: string; uploade
 
   // Fall back to yt-dlp
   try {
-    const { stdout } = await execFileAsync(YT_DLP, [
+    const { stdout } = await runYtdlp([
       `https://www.youtube.com/watch?v=${videoId}`,
       "--dump-json",
       "--no-download",
       "--no-warnings",
       "--no-playlist",
-    ], { timeout: 20000 });
+    ], 20000);
 
     const data = JSON.parse(stdout);
     return {
