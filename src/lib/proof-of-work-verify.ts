@@ -1,3 +1,4 @@
+import { logEvent } from "@/lib/logger";
 import { createHash } from "crypto";
 
 interface PowSolution {
@@ -26,14 +27,14 @@ export function verifyProofOfWork(solution: PowSolution): boolean {
   // Check age
   const age = Date.now() - solution.timestamp;
   if (age > MAX_AGE_MS || age < -MAX_CLOCK_SKEW_MS) {
-    console.log("[pow] rejected: age", age, "ms");
+    logEvent("proof-of-work-verify.rejected_age");
     return false;
   }
 
   // Check replay
   const key = `${solution.challenge}:${solution.nonce}`;
   if (usedChallenges.has(key)) {
-    console.log("[pow] rejected: replay");
+    logEvent("proof-of-work-verify.rejected_replay");
     return false;
   }
 
@@ -41,14 +42,14 @@ export function verifyProofOfWork(solution: PowSolution): boolean {
   const input = `${solution.challenge}:${solution.nonce}`;
   const hash = createHash("sha256").update(input).digest("hex");
   if (hash !== solution.hash) {
-    console.log("[pow] rejected: hash mismatch");
+    logEvent("proof-of-work-verify.rejected_hash_mismatch");
     return false;
   }
 
   // Verify difficulty
   const hashBuffer = Buffer.from(hash, "hex");
   if (!hasLeadingZeroBits(hashBuffer, DIFFICULTY)) {
-    console.log("[pow] rejected: difficulty not met");
+    logEvent("proof-of-work-verify.rejected_difficulty_not_met");
     return false;
   }
 

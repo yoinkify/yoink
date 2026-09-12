@@ -1,3 +1,4 @@
+import { logEvent } from "@/lib/logger";
 /**
  * Shared track resolution logic used by both /api/metadata and /api/download.
  *
@@ -823,7 +824,7 @@ async function scrapeSpotifyAlbumName(trackId: string): Promise<string | null> {
     const meta = await fetchSpotifyPageMetadata("track", trackId);
     const albumName = getSpotifyAlbumNameFromDescription(meta?.ogDescription || meta?.description || null);
     if (albumName) {
-      console.log("[resolve] scraped album name from og:description:", albumName);
+      logEvent("resolve-track.scraped_album_name_from_og_description");
     }
     return albumName;
   } catch {
@@ -859,7 +860,7 @@ async function scrapeSpotifyTrack(url: string): Promise<TrackInfo | null> {
     const releaseDate = getSpotifyEntityReleaseDate(entity);
     const albumArt = findSpotifyImageUrl(entity) || "";
 
-    console.log("[resolve] fallback scrape from Spotify embed:", artist, "-", name, albumName ? `(album: ${albumName})` : "(no album)");
+    logEvent("resolve-track.fallback_scrape_from_spotify_embed");
 
     return {
       name,
@@ -881,8 +882,8 @@ async function scrapeSpotifyTrack(url: string): Promise<TrackInfo | null> {
       copyright: null,
       totalTracks: null,
     };
-  } catch (e) {
-    console.log("[resolve] Spotify embed scrape failed:", e instanceof Error ? e.message : e);
+  } catch {
+    logEvent("resolve-track.spotify_embed_scrape_failed");
     return null;
   }
 }
@@ -954,9 +955,9 @@ async function trySpotifyApi(url: string): Promise<TrackInfo | null> {
     if (msg.includes("403")) {
       spotifyApiBroken = true;
       spotifyApiLastCheck = Date.now();
-      console.log("[resolve] Spotify API requires premium — skipping for 30min");
+      logEvent("resolve-track.spotify_api_requires_premium_skipping_for_30min");
     } else {
-      console.log("[resolve] Spotify API failed:", msg);
+      logEvent("resolve-track.spotify_api_failed");
     }
     return null;
   }
@@ -976,7 +977,7 @@ async function resolveOembed(url: string): Promise<{ artist: string | null; titl
           const raw = o.title || o.html?.match(/title="Spotify Embed: ([^"]+)"/)?.[1];
           if (raw) {
             const parsed = parseOembedTitle(raw);
-            console.log("[oembed] parsed:", JSON.stringify(parsed));
+            logEvent("resolve-track.parsed");
             return parsed;
           }
         }
@@ -1013,7 +1014,7 @@ async function resolveOembed(url: string): Promise<{ artist: string | null; titl
 
                 if (names.length > 0) {
                   result.artist = names.join("; ");
-                  console.log("[oembed] scraped artist from NEXT_DATA:", result.artist);
+                  logEvent("resolve-track.scraped_artist_from_next_data");
                 }
 
                 const entityTitle = typeof entity.title === "string" && entity.title.trim()
@@ -1039,7 +1040,7 @@ async function resolveOembed(url: string): Promise<{ artist: string | null; titl
                 .filter(Boolean);
               if (names.length > 0) {
                 result.artist = names.join("; ");
-                console.log("[oembed] scraped artist from embed JSON:", result.artist);
+                logEvent("resolve-track.scraped_artist_from_embed_json");
               }
             } catch { /* JSON parse failed */ }
           }
@@ -1052,7 +1053,7 @@ async function resolveOembed(url: string): Promise<{ artist: string | null; titl
               const byMatch = titleMatch[1].match(/(?:song and lyrics by|by)\s+(.+?)(?:\s*\||\s*$)/i);
               if (byMatch) {
                 result.artist = byMatch[1].trim();
-                console.log("[oembed] scraped artist from og:title:", result.artist);
+                logEvent("resolve-track.scraped_artist_from_og_title");
               }
             }
           }
@@ -1098,7 +1099,7 @@ async function searchMusicBrainz(title: string, artist: string | null): Promise<
         if (deezerId) {
           const meta = await fetchDeezerTrackMetadata(deezerId);
           if (meta) {
-            console.log("[resolve] MusicBrainz ISRC→Deezer:", meta.artist, "-", meta.name, `(ISRC: ${isrc})`);
+            logEvent("resolve-track.musicbrainz_isrc_deezer");
             return { ...meta, spotifyUrl: "", label: null, copyright: null } as TrackInfo;
           }
         }
@@ -1111,12 +1112,12 @@ async function searchMusicBrainz(title: string, artist: string | null): Promise<
       if (itunesResult) {
         // Attach ISRC from MusicBrainz if iTunes didn't have one
         if (!itunesResult.isrc && isrcs[0]) itunesResult.isrc = isrcs[0];
-        console.log("[resolve] MusicBrainz→iTunes:", itunesResult.artist, "-", itunesResult.name);
+        logEvent("resolve-track.musicbrainz_itunes");
         return itunesResult;
       }
     }
-  } catch (e) {
-    console.log("[resolve] MusicBrainz failed:", e instanceof Error ? e.message : e);
+  } catch {
+    logEvent("resolve-track.musicbrainz_failed");
   }
   return null;
 }
@@ -1149,7 +1150,7 @@ export async function searchDeezerStructured(title: string, artist: string | nul
     if (match) {
       const meta = await fetchDeezerTrackMetadata(String(match.id));
       if (meta) {
-        console.log("[resolve] Deezer search:", meta.artist, "-", meta.name, meta.album ? `(album: ${meta.album})` : "");
+        logEvent("resolve-track.deezer_search");
         return { ...meta, spotifyUrl: "", label: null, copyright: null } as TrackInfo;
       }
     }
@@ -1173,7 +1174,7 @@ export async function resolveSpotifyTrack(url: string): Promise<TrackInfo | null
     if (resolved?.deezerId) {
       const dz = await fetchDeezerTrackMetadata(resolved.deezerId);
       if (dz) {
-        console.log("[resolve] Deezer via song.link:", dz.artist, "-", dz.name);
+        logEvent("resolve-track.deezer_via_song_link");
         return { ...dz, spotifyUrl: url, label: null, copyright: null } as TrackInfo;
       }
     }
@@ -1207,7 +1208,7 @@ export async function resolveSpotifyTrack(url: string): Promise<TrackInfo | null
     try {
       const itunes = await searchItunesTrack(artist || "", title, album);
       if (itunes) {
-        console.log("[resolve] iTunes search:", itunes.artist, "-", itunes.name);
+        logEvent("resolve-track.itunes_search");
         return { ...itunes, spotifyUrl: url };
       }
     } catch { /* continue */ }
@@ -1215,11 +1216,11 @@ export async function resolveSpotifyTrack(url: string): Promise<TrackInfo | null
 
   // 5. Return scraped embed data if we have it (better than nothing)
   if (scraped) {
-    console.log("[resolve] using scraped embed data as final fallback");
+    logEvent("resolve-track.using_scraped_embed_data_as_final_fallback");
     return scraped;
   }
 
-  console.log("[resolve] all sources exhausted for Spotify URL:", url);
+  logEvent("resolve-track.all_sources_exhausted_for_spotify_url");
   return null;
 }
 
@@ -1228,7 +1229,7 @@ export async function resolveAppleMusicTrack(url: string): Promise<TrackInfo | n
   // 1. Direct iTunes lookup by ID (fast, reliable, no rate limit)
   const itunesId = extractAppleMusicTrackId(url);
   if (itunesId) {
-    console.log("[resolve] iTunes lookup ID:", itunesId);
+    logEvent("resolve-track.itunes_lookup_id");
     const track = await lookupByItunesId(itunesId);
     if (track) {
       if (!track.isrc) {
@@ -1245,7 +1246,7 @@ export async function resolveAppleMusicTrack(url: string): Promise<TrackInfo | n
         }
       }
 
-      console.log("[resolve] iTunes lookup:", track.artist, "-", track.name);
+      logEvent("resolve-track.itunes_lookup");
       return track;
     }
   }
@@ -1255,7 +1256,7 @@ export async function resolveAppleMusicTrack(url: string): Promise<TrackInfo | n
   if (resolved?.deezerId) {
     const dz = await fetchDeezerTrackMetadata(resolved.deezerId);
     if (dz) {
-      console.log("[resolve] Apple Music → Deezer via song.link:", dz.artist, "-", dz.name);
+      logEvent("resolve-track.apple_music_deezer_via_song_link");
       return { ...dz, spotifyUrl: resolved.spotifyUrl || "", label: null, copyright: null } as TrackInfo;
     }
   }
@@ -1276,7 +1277,7 @@ export async function resolveYouTubeTrack(videoId: string, url: string): Promise
   if (resolved?.deezerId) {
     const dz = await fetchDeezerTrackMetadata(resolved.deezerId);
     if (dz) {
-      console.log("[resolve] YouTube enriched via Deezer:", dz.artist, "-", dz.name);
+      logEvent("resolve-track.youtube_enriched_via_deezer");
       return { ...dz, spotifyUrl: resolved.spotifyUrl || "", label: null, copyright: null } as TrackInfo;
     }
   }
@@ -1296,7 +1297,7 @@ export async function resolveYouTubeTrack(videoId: string, url: string): Promise
     try {
       const itunes = await searchItunesTrack(ytInfo.artist, ytInfo.name);
       if (itunes) {
-        console.log("[resolve] YouTube enriched via iTunes:", itunes.artist, "-", itunes.name);
+        logEvent("resolve-track.youtube_enriched_via_itunes");
         return itunes;
       }
     } catch { /* continue */ }
@@ -1383,10 +1384,10 @@ async function scrapeSpotifyEmbed(type: "playlist" | "album" | "artist", id: str
 
     if (tracks.length === 0) return null;
 
-    console.log(`[resolve] scraped ${tracks.length} tracks from embed ${type}/${id}`);
+    logEvent("resolve-track.scraped_tracks_from_embed");
     return { name, image, tracks };
-  } catch (e) {
-    console.log(`[resolve] embed scrape failed for ${type}/${id}:`, e instanceof Error ? e.message : e);
+  } catch {
+    logEvent("resolve-track.embed_scrape_failed_for");
     return null;
   }
 }

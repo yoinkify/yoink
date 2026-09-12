@@ -1,3 +1,4 @@
+import { logEvent } from "@/lib/logger";
 import type { TrackInfo } from "./spotify";
 
 interface TidalToken {
@@ -40,8 +41,8 @@ async function getTidalSession(): Promise<string | null> {
     });
 
     if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      console.log("[tidal] token refresh failed:", res.status, errBody);
+
+      logEvent("tidal.token_refresh_failed", res.status);
       return process.env.TIDAL_ACCESS_TOKEN || null;
     }
 
@@ -52,8 +53,8 @@ async function getTidalSession(): Promise<string | null> {
     };
 
     return cachedToken.access_token;
-  } catch (e) {
-    console.error("[tidal] token refresh error:", e);
+  } catch {
+    logEvent("tidal.token_refresh_error");
     return process.env.TIDAL_ACCESS_TOKEN || null;
   }
 }
@@ -91,7 +92,7 @@ export async function searchTidalByTitleArtist(track: TrackInfo): Promise<string
     );
 
     if (!res.ok) {
-      console.log("[tidal] title search failed:", res.status);
+      logEvent("tidal.title_search_failed", res.status);
       return null;
     }
 
@@ -106,8 +107,8 @@ export async function searchTidalByTitleArtist(track: TrackInfo): Promise<string
     }
 
     return null;
-  } catch (e) {
-    console.error("[tidal] title search error:", e);
+  } catch {
+    logEvent("tidal.title_search_error");
     return null;
   }
 }
@@ -126,15 +127,15 @@ export async function lookupTidalByIsrc(isrc: string): Promise<string | null> {
     );
 
     if (!res.ok) {
-      console.log("[tidal] ISRC lookup failed:", res.status);
+      logEvent("tidal.isrc_lookup_failed", res.status);
       return null;
     }
 
     const data = await res.json();
     const track = data.data?.[0];
     return track?.id ? String(track.id) : null;
-  } catch (e) {
-    console.error("[tidal] ISRC lookup error:", e);
+  } catch {
+    logEvent("tidal.isrc_lookup_error");
     return null;
   }
 }
@@ -170,8 +171,8 @@ export async function lookupTidalVideoCover(track: TrackInfo): Promise<string | 
     if (!videoCover) return null;
 
     return `https://resources.tidal.com/videos/${videoCover}/1280x1280.mp4`;
-  } catch (e) {
-    console.error("[tidal] video cover lookup error:", e);
+  } catch {
+    logEvent("tidal.video_cover_lookup_error");
     return null;
   }
 }
@@ -208,20 +209,20 @@ async function getManifest(
       );
 
       if (!res.ok) {
-        console.log(`[tidal] v1 quality ${quality} not available:`, res.status);
+        logEvent("tidal.v1_quality_not_available", res.status);
         continue;
       }
 
       const text = await res.text();
       if (text.trimStart().startsWith("<")) {
-        console.log(`[tidal] v1 quality ${quality}: received XML response, skipping`);
+        logEvent("tidal.v1_quality_received_xml_response_skipping");
         continue;
       }
 
       const data = JSON.parse(text);
 
       if (data.encryptionType && data.encryptionType !== "NONE") {
-        console.log(`[tidal] encrypted stream (${data.encryptionType}), skipping`);
+        logEvent("tidal.encrypted_stream_skipping");
         continue;
       }
 
@@ -231,8 +232,8 @@ async function getManifest(
       if (!url) continue;
 
       return { url, quality: data.audioQuality || quality };
-    } catch (e) {
-      console.error(`[tidal] v1 playback info error (${quality}):`, e);
+    } catch {
+      logEvent("tidal.v1_playback_info_error");
     }
   }
 
@@ -283,7 +284,7 @@ export async function fetchTidalAudio(
           ? parseTidalDuration(duration)
           : duration;
         if (!verifyMatch(durationSec, track)) {
-          console.log("[tidal] duration mismatch, skipping");
+          logEvent("tidal.duration_mismatch_skipping");
           return null;
         }
       }
@@ -292,18 +293,18 @@ export async function fetchTidalAudio(
     // Get streaming manifest
     const streamInfo = await getManifest(tidalId, preferHiRes, token);
     if (!streamInfo) {
-      console.log("[tidal] no available quality tier");
+      logEvent("tidal.no_available_quality_tier");
       return null;
     }
 
-    console.log("[tidal] streaming quality:", streamInfo.quality);
+    logEvent("tidal.streaming_quality");
 
     const audioRes = await fetch(streamInfo.url, {
       signal: AbortSignal.timeout(120000),
     });
 
     if (!audioRes.ok) {
-      console.log("[tidal] audio download failed:", audioRes.status);
+      logEvent("tidal.audio_download_failed", audioRes.status);
       return null;
     }
 
@@ -318,8 +319,8 @@ export async function fetchTidalAudio(
       bitrate: isFlac ? 0 : 320,
       quality: streamInfo.quality,
     };
-  } catch (e) {
-    console.error("[tidal] fetch error:", e);
+  } catch {
+    logEvent("tidal.fetch_error");
     return null;
   }
 }
