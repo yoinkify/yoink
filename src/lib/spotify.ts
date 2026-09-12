@@ -1,5 +1,6 @@
 import { isCompilationAlbum } from "./audio-metadata";
 
+import { logEvent } from "@/lib/logger";
 interface SpotifyToken {
   access_token: string;
   expires_at: number;
@@ -28,7 +29,7 @@ async function spotifyFetch(url: string, init?: RequestInit): Promise<Response> 
   if (res.status === 429) {
     const retryAfter = parseInt(res.headers.get("Retry-After") || "30", 10);
     rateLimitResetAt = Date.now() + retryAfter * 1000;
-    console.log(`[spotify] rate limited — ${retryAfter}s retry-after`);
+    logEvent("spotify.rate_limited_s_retry_after");
     throw new Error(`Spotify is rate limited — try again in ${formatRetry(retryAfter)}`);
   }
 
@@ -142,8 +143,8 @@ export async function getTrackInfo(url: string): Promise<TrackInfo> {
   });
 
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    console.log(`[spotify] track API error: ${res.status} ${res.statusText}`, body.slice(0, 200));
+
+    logEvent("spotify.track_api_error", res.status);
     throw new Error(`Spotify API ${res.status}: ${res.statusText}`);
   }
 
@@ -307,8 +308,8 @@ export async function getAlbumInfo(url: string): Promise<PlaylistInfo> {
   );
 
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    console.error(`[spotify] album fetch failed: ${res.status} ${res.statusText} — ${body}`);
+
+    logEvent("spotify.album_fetch_failed", res.status);
     throw new Error(res.status === 404 ? "Album not found" : `Spotify API error (${res.status})`);
   }
 

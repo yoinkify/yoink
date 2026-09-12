@@ -1,11 +1,12 @@
+import { withRequestLogging } from "@/lib/request-logging";
+import { logEvent } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { getPlaylistInfo, getAlbumInfo, getArtistTopTracks, detectUrlType, detectPlatform, type TrackInfo } from "@/lib/spotify";
 import { lookupTidalVideoCover } from "@/lib/tidal";
 import { searchItunesTrack } from "@/lib/itunes";
 import { resolveTrack, resolvePlaylist, resolveAlbum, resolveArtist, getSpotifyFromUrl, searchDeezerStructured, setCache, type SpotifyFromUrlResponse, type SpotifyFromUrlTrack } from "@/lib/resolve-track";
 import { rateLimit } from "@/lib/ratelimit";
-import { getRequestSource } from "@/lib/request-source";
-import { getClientIp, getRequestLogId, summarizeUrlForLogs } from "@/lib/request-privacy";
+import { getClientIp } from "@/lib/request-privacy";
 import { verifyProofOfWork } from "@/lib/proof-of-work-verify";
 import { isCompilationAlbum } from "@/lib/audio-metadata";
 
@@ -187,21 +188,18 @@ function cacheTrackForPrepare(url: string, response: unknown) {
   setCache(url, trackFields as unknown as TrackInfo);
 }
 
-export async function POST(request: NextRequest) {
-  const logId = getRequestLogId(request);
-
+async function handlePOST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
     const { allowed, retryAfter } = rateLimit(`meta:${ip}`, 10, 60_000);
     if (!allowed) {
-      console.log("[ratelimit] metadata blocked:", logId);
+      logEvent("api.metadata.metadata_blocked");
       return NextResponse.json(
         { error: `slow down — try again in ${retryAfter}s`, rateLimit: true },
         { status: 429, headers: { "Retry-After": String(retryAfter) } }
       );
     }
 
-    const source = getRequestSource(request);
     const body = await request.json();
     const { url, pow, fullMetadata } = body;
 
@@ -210,9 +208,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "verification failed — please try again" }, { status: 403 });
     }
 
-    console.log(
-      `[metadata] [${source}] ${logId} → ${typeof url === "string" ? summarizeUrlForLogs(url) : "invalid"}`
-    );
+    logEvent("api.metadata.request_received");
 
     if (!url || typeof url !== "string") {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
@@ -273,8 +269,8 @@ export async function POST(request: NextRequest) {
           const response = { type: "playlist", ...playlist };
           setCachedMetadata(cacheKey, response);
           return NextResponse.json(response);
-        } catch (e) {
-          console.log("[metadata] Spotify playlist API failed:", e instanceof Error ? e.message : e);
+        } catch {
+          logEvent("api.metadata.spotify_playlist_api_failed");
           const scraped = await resolvePlaylist(url);
           if (scraped) {
             const response = { type: "playlist", ...scraped };
@@ -291,8 +287,8 @@ export async function POST(request: NextRequest) {
           const response = { type: "playlist", ...album };
           setCachedMetadata(cacheKey, response);
           return NextResponse.json(response);
-        } catch (e) {
-          console.log("[metadata] Spotify album API failed:", e instanceof Error ? e.message : e);
+        } catch {
+          logEvent("api.metadata.spotify_album_api_failed");
           const scraped = await resolveAlbum(url);
           if (scraped) {
             const response = { type: "playlist", ...scraped };
@@ -309,8 +305,8 @@ export async function POST(request: NextRequest) {
           const response = { type: "playlist", ...artist };
           setCachedMetadata(cacheKey, response);
           return NextResponse.json(response);
-        } catch (e) {
-          console.log("[metadata] Spotify artist API failed:", e instanceof Error ? e.message : e);
+        } catch {
+          logEvent("api.metadata.spotify_artist_api_failed");
           const scraped = await resolveArtist(url);
           if (scraped) {
             const response = { type: "playlist", ...scraped };
@@ -348,8 +344,10 @@ export async function POST(request: NextRequest) {
       { error: "couldn't find this track — try a different link" },
       { status: 404 }
     );
-  } catch (error) {
-    console.error(`[metadata] ${logId} error:`, error);
+  } catch {
+    logEvent("api.metadata.error");
     return NextResponse.json({ error: "failed to fetch info — please try again" }, { status: 500 });
   }
 }
+
+export const POST = withRequestLogging(handlePOST, "api.metadata.started");

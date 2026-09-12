@@ -1,3 +1,4 @@
+import { logEvent } from "@/lib/logger";
 import type { TrackInfo } from "./spotify";
 import { resolveSonglink } from "./songlink";
 import { fetchDeezerAudio, lookupDeezerByIsrc, searchDeezerByTitleArtist } from "./deezer";
@@ -19,10 +20,10 @@ export interface AudioResult {
 async function getDeezerIdForTrack(track: TrackInfo): Promise<string | null> {
   // Fast path: ISRC lookup via Deezer public API (no rate limit)
   if (track.isrc) {
-    console.log("[audio] looking up deezer by ISRC:", track.isrc);
+    logEvent("audio-sources.looking_up_deezer_by_isrc");
     const id = await lookupDeezerByIsrc(track.isrc);
     if (id) return id;
-    console.log("[audio] ISRC lookup returned nothing");
+    logEvent("audio-sources.isrc_lookup_returned_nothing");
   }
 
   // Second path: Song.link fallback
@@ -30,35 +31,35 @@ async function getDeezerIdForTrack(track: TrackInfo): Promise<string | null> {
   if (links?.deezerId) return links.deezerId;
 
   // Third path: title/artist search on Deezer directly
-  console.log("[audio] trying deezer title search for:", track.name);
+  logEvent("audio-sources.trying_deezer_title_search_for");
   return searchDeezerByTitleArtist(track);
 }
 
 async function tryDeezer(track: TrackInfo, preferFlac: boolean): Promise<AudioResult | null> {
   try {
-    console.log("[audio] trying deezer for:", track.name, preferFlac ? "(flac)" : "(mp3)");
+    logEvent("audio-sources.trying_deezer_for");
     const deezerId = await getDeezerIdForTrack(track);
     if (!deezerId) {
-      console.log("[audio] no deezer id found");
+      logEvent("audio-sources.no_deezer_id_found");
       return null;
     }
 
-    console.log("[audio] got deezer id:", deezerId);
+    logEvent("audio-sources.got_deezer_id");
     const result = await fetchDeezerAudio(deezerId, track, preferFlac);
     if (!result) {
-      console.log("[audio] deezer fetch returned null");
+      logEvent("audio-sources.deezer_fetch_returned_null");
       return null;
     }
 
-    console.log("[audio] deezer success:", result.format, result.bitrate === 0 ? "lossless" : result.bitrate + "kbps");
+    logEvent("audio-sources.deezer_success");
     return {
       buffer: result.buffer,
       source: "deezer",
       format: result.format,
       bitrate: result.bitrate,
     };
-  } catch (e) {
-    console.error("[audio] deezer error:", e);
+  } catch {
+    logEvent("audio-sources.deezer_error");
     return null;
   }
 }
@@ -66,10 +67,10 @@ async function tryDeezer(track: TrackInfo, preferFlac: boolean): Promise<AudioRe
 async function getTidalIdForTrack(track: TrackInfo): Promise<string | null> {
   // Fast path: ISRC lookup via Tidal API
   if (track.isrc) {
-    console.log("[audio] looking up tidal by ISRC:", track.isrc);
+    logEvent("audio-sources.looking_up_tidal_by_isrc");
     const id = await lookupTidalByIsrc(track.isrc);
     if (id) return id;
-    console.log("[audio] Tidal ISRC lookup returned nothing");
+    logEvent("audio-sources.tidal_isrc_lookup_returned_nothing");
   }
 
   // Second path: Song.link fallback
@@ -77,35 +78,35 @@ async function getTidalIdForTrack(track: TrackInfo): Promise<string | null> {
   if (links?.tidalId) return links.tidalId;
 
   // Third path: title/artist search on Tidal directly
-  console.log("[audio] trying tidal title search for:", track.name);
+  logEvent("audio-sources.trying_tidal_title_search_for");
   return searchTidalByTitleArtist(track);
 }
 
 async function tryTidal(track: TrackInfo, preferHiRes: boolean): Promise<AudioResult | null> {
   try {
-    console.log("[audio] trying tidal for:", track.name, preferHiRes ? "(hi-res)" : "(lossless)");
+    logEvent("audio-sources.trying_tidal_for");
     const tidalId = await getTidalIdForTrack(track);
     if (!tidalId) {
-      console.log("[audio] no tidal id found");
+      logEvent("audio-sources.no_tidal_id_found");
       return null;
     }
 
-    console.log("[audio] got tidal id:", tidalId);
+    logEvent("audio-sources.got_tidal_id");
     const result = await withTidalThrottle(() => fetchTidalAudio(tidalId, track, preferHiRes));
     if (!result) {
-      console.log("[audio] tidal fetch returned null");
+      logEvent("audio-sources.tidal_fetch_returned_null");
       return null;
     }
 
-    console.log("[audio] tidal success:", result.format, result.bitrate === 0 ? "lossless" : result.bitrate + "kbps", `(${result.quality})`);
+    logEvent("audio-sources.tidal_success");
     return {
       buffer: result.buffer,
       source: "tidal",
       format: result.format,
       bitrate: result.bitrate,
     };
-  } catch (e) {
-    console.error("[audio] tidal error:", e);
+  } catch {
+    logEvent("audio-sources.tidal_error");
     return null;
   }
 }
@@ -161,8 +162,8 @@ async function tryYouTube(track: TrackInfo): Promise<AudioResult> {
       format: "webm",
       bitrate: 160,
     };
-  } catch (e) {
-    console.log("[audio] piped stream failed, trying yt-dlp direct download:", e instanceof Error ? e.message : e);
+  } catch {
+    logEvent("audio-sources.piped_stream_failed_trying_yt_dlp_direct_download");
   }
 
   // Fall back to yt-dlp direct download

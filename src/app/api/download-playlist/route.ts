@@ -1,3 +1,5 @@
+import { withRequestLogging } from "@/lib/request-logging";
+import { logEvent } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -11,8 +13,7 @@ import { incrementDownloads } from "@/lib/counter";
 import { setExplicitTag } from "@/lib/mp4-advisory";
 import { ffmpegSemaphore } from "@/lib/semaphore";
 import { setCatalogIds } from "@/lib/mp4-catalog";
-import { getRequestSource } from "@/lib/request-source";
-import { getClientIp, getRequestLogId, summarizeUrlForLogs } from "@/lib/request-privacy";
+import { getClientIp } from "@/lib/request-privacy";
 import { verifyProofOfWork } from "@/lib/proof-of-work-verify";
 import { enrichPlaylistTracks, loadPlaylistWithFallback } from "@/lib/playlist-workflow";
 import { prepareTrackAssets } from "@/lib/track-prep";
@@ -203,12 +204,10 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[/\\:*?"<>|]/g, "_");
 }
 
-export async function POST(request: NextRequest) {
-  const logId = getRequestLogId(request);
-
+async function handlePOST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
-    const source = getRequestSource(request);
+
     const { allowed, retryAfter } = rateLimit(`dl-playlist:${ip}`, 5, 60_000);
     if (!allowed) {
       return NextResponse.json(
@@ -223,9 +222,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "verification failed — please try again" }, { status: 403 });
     }
 
-    console.log(
-      `[playlist-dl] [${source}] ${logId} → ${summarizeUrlForLogs(url)}${requestedFormat ? ` (${requestedFormat})` : ""}`
-    );
+    logEvent("api.download-playlist.request_received");
 
     if (!url || typeof url !== "string") {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
@@ -233,13 +230,13 @@ export async function POST(request: NextRequest) {
 
     const MAX_TRACKS = 200;
 
-    const playlist = await loadPlaylistWithFallback(url, "[playlist-dl]");
+    const playlist = await loadPlaylistWithFallback(url);
 
     if (!playlist) {
       return NextResponse.json({ error: "couldn't load this right now" }, { status: 503 });
     }
 
-    playlist.tracks = await enrichPlaylistTracks(playlist.tracks, "[playlist-dl]");
+    playlist.tracks = await enrichPlaylistTracks(playlist.tracks);
 
     if (!playlist.tracks.length) {
       return NextResponse.json({ error: "Playlist has no tracks" }, { status: 400 });
@@ -276,7 +273,7 @@ export async function POST(request: NextRequest) {
             } catch (err) {
               lastError = err;
               if (attempt < MAX_RETRIES) {
-                console.log(`[playlist] track ${index} attempt ${attempt + 1} failed, retrying...`);
+                logEvent("api.download-playlist.track_attempt_failed_retrying");
                 await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
               }
             }
@@ -319,7 +316,7 @@ export async function POST(request: NextRequest) {
                 ? "download timed out"
                 : "download failed";
               send({ type: "error", index: i + j, reason: shortReason });
-              console.error(`[playlist] track ${i + j} failed after ${MAX_RETRIES + 1} attempts:`, result.reason);
+              logEvent("api.download-playlist.track_failed_after_attempts");
             }
           }
         }
@@ -371,6 +368,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Playlist download failed";
-    return NextResponse.json({ error: message, requestId: logId }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const POST = withRequestLogging(handlePOST, "api.download-playlist.started");

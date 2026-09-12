@@ -1,3 +1,4 @@
+import { logEvent } from "@/lib/logger";
 import { rateLimit } from "./ratelimit";
 
 interface SonglinkResult {
@@ -69,7 +70,7 @@ export async function resolveSonglink(
   spotifyUrl: string
 ): Promise<SonglinkResult | null> {
   if (process.env.SONGLINK_ENABLED !== "true") {
-    console.log("[songlink] disabled — SONGLINK_ENABLED:", process.env.SONGLINK_ENABLED);
+    logEvent("songlink.disabled_songlink_enabled");
     return null;
   }
 
@@ -99,7 +100,7 @@ export async function resolveSonglink(
     );
 
     if (!res.ok) {
-      console.log("[songlink] API error:", res.status);
+      logEvent("songlink.api_error", res.status);
       return null;
     }
 
