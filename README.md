@@ -2,6 +2,8 @@
 
 paste a music link. get the file.
 
+> **live instance notice:** the old live instance has been down for a few months because i can no longer afford the hosting costs. the links are staying here for reference, but the hosted site is currently unavailable. you can still self-host yoink using the instructions below.
+
 **[yoinkify.com](https://yoinkify.com)**
 
 ## latest release — v3.1.0
