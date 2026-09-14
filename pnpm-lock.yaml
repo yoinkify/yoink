@@ -26,8 +26,8 @@ importers:
         specifier: ^5.3.0
         version: 5.3.0
       '@linear/sdk':
-        specifier: ^88.1.0
-        version: 88.1.0(graphql@16.13.2)
+        specifier: ^95.0.0
+        version: 95.0.0(graphql@16.13.2)
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
@@ -429,8 +429,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@linear/sdk@88.1.0':
-    resolution: {integrity: sha512-l0U5O2hFcNFYbjH+YQXJyO14obFX5mb6jdSjWstAkoDaIwy6oBnkd4P9uPy/4PnUDfSf5bPWSI9STCxo5STFxw==}
+  '@linear/sdk@95.0.0':
+    resolution: {integrity: sha512-lZsAJeqWdrWna3/qiv3Xc3pdNyB0TcwHraqEX8oudlUPQqcdnccWm+xCPK4RUB5G8XVGcsrV67VFIVmyiFymGw==}
     engines: {node: '>=18.x'}
 
   '@napi-rs/wasm-runtime@1.2.3':
@@ -2794,7 +2794,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@linear/sdk@88.1.0(graphql@16.13.2)':
+  '@linear/sdk@95.0.0(graphql@16.13.2)':
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@16.13.2)
     transitivePeerDependencies:
